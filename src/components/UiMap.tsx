@@ -3,7 +3,6 @@ import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
 import { Map, Flame, Layers } from 'lucide-react';
 import L from 'leaflet';
 
-// IMPORTANTE: Corrección para que los iconos de los marcadores de Leaflet se vean bien en React
 import 'leaflet/dist/leaflet.css';
 import iconMarker from 'leaflet/dist/images/marker-icon.png';
 import iconRetina from 'leaflet/dist/images/marker-icon-2x.png';
