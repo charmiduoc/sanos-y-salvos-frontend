@@ -1,7 +1,8 @@
 import { UiReportCard } from './components/UiReportCard';
+import { UiPetForm } from './components/UiPetForm';
+import { UiMap } from './components/UiMap';
 import { ShieldCheck } from 'lucide-react';
 
-// Datos de prueba imitando la salida de tus microservicios
 const REPORTES_MOCK = [
   {
     id: '1',
@@ -27,28 +28,48 @@ function App() {
   return (
     <div style={{ backgroundColor: '#f8fafc', minHeight: '100vh', padding: '24px', fontFamily: 'system-ui' }}>
       
-      {/* Header de la Aplicación */}
+      {/* Header General */}
       <header style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '32px', borderBottom: '2px solid #e2e8f0', paddingBottom: '16px' }}>
         <ShieldCheck size={36} color="#10b981" />
         <h1 style={{ margin: 0, fontSize: '28px', color: '#0f172a' }}>Sanos y Salvos</h1>
       </header>
 
-      {/* Sección del Tablero */}
-      <main>
-        <h2 style={{ fontSize: '20px', color: '#334155', marginBottom: '16px' }}>Mascotas perdidas recientemente</h2>
+      {/* Grid Principal: Izquierda (Mapa y Tarjetas), Derecha (Formulario) */}
+      <div style={{
+        display: 'grid',
+        gridTemplateColumns: '1fr minmax(300px, 420px)',
+        gap: '32px',
+        alignItems: 'start'
+      }}>
         
-        {/* Contenedor en cuadrícula flexible */}
-        <div style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))',
-          gap: '24px'
-        }}>
-          {REPORTES_MOCK.map(reporte => (
-            <UiReportCard key={reporte.id} report={reporte} />
-          ))}
-        </div>
-      </main>
+        {/* Columna Izquierda */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '32px' }}>
+          {/* Módulo del Mapa Real */}
+          <section>
+            <UiMap />
+          </section>
 
+          {/* Módulo de la Cartelera */}
+          <section>
+            <h2 style={{ fontSize: '20px', color: '#334155', marginBottom: '16px' }}>Mascotas perdidas recientemente</h2>
+            <div style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))',
+              gap: '20px'
+            }}>
+              {REPORTES_MOCK.map(reporte => (
+                <UiReportCard key={reporte.id} report={reporte} />
+              ))}
+            </div>
+          </section>
+        </div>
+
+        {/* Columna Derecha: Formulario Fijo */}
+        <section style={{ position: 'sticky', top: '24px' }}>
+          <UiPetForm />
+        </section>
+
+      </div>
     </div>
   );
 }
