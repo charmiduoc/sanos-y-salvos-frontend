@@ -1,75 +1,237 @@
-import { UiReportCard } from './components/UiReportCard';
-import { UiPetForm } from './components/UiPetForm';
-import { UiMap } from './components/UiMap';
-import { ShieldCheck } from 'lucide-react';
-
-const REPORTES_MOCK = [
-  {
-    id: '1',
-    nombre: 'Rocky',
-    especie: 'Perro (Pastor Alemán)',
-    descripcion: 'Se asustó con unos fuegos artificiales. Es amigable pero muy asustadizo.',
-    fechaMencion: 'Reportado hoy a las 14:00',
-    ultimaUbicacion: 'Cerca de Plaza de Armas',
-    estado: 'PERDIDO' as const
-  },
-  {
-    id: '2',
-    nombre: 'Luna',
-    especie: 'Gato (Siamés)',
-    descripcion: 'Tiene un collar morado con su cascabel. No suele salir de casa.',
-    fechaMencion: 'Reportado ayer',
-    ultimaUbicacion: 'Av. Las Condes #1240',
-    estado: 'PERDIDO' as const
-  }
-];
+import React, { useState, useEffect } from 'react';
+import { Toaster, toast } from 'react-hot-toast';
+import { Dashboard } from './pages/Dashboard';
+import { Navbar } from './components/Layout/Navbar';
+import userService from './service/user.service';
+import notificationService from './service/notification.service';
+import type { Usuario } from './types';
 
 function App() {
+  const [currentUser, setCurrentUser] = useState<Usuario | null>(null);
+  const [unreadCount, setUnreadCount] = useState(0);
+  const [showLogin, setShowLogin] = useState(false);
+  const [showRegister, setShowRegister] = useState(false);
+  const [loginEmail, setLoginEmail] = useState('');
+  const [loginPassword, setLoginPassword] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+
+  useEffect(() => {
+    const storedUser = localStorage.getItem('user');
+    if (storedUser) {
+      setCurrentUser(JSON.parse(storedUser));
+    }
+  }, []);
+
+  useEffect(() => {
+    if (currentUser) {
+      loadUnreadCount();
+      const interval = setInterval(loadUnreadCount, 30000);
+      return () => clearInterval(interval);
+    }
+  }, [currentUser]);
+
+  useEffect(() => {
+    if (showLogin || showRegister) {
+      document.body.style.overflow = 'hidden';
+      document.body.classList.add('modal-open');
+    } else {
+      document.body.style.overflow = '';
+      document.body.classList.remove('modal-open');
+    }
+    return () => {
+      document.body.style.overflow = '';
+      document.body.classList.remove('modal-open');
+    };
+  }, [showLogin, showRegister]);
+
+  const loadUnreadCount = async () => {
+    if (currentUser) {
+      try {
+        const count = await notificationService.getUnreadCount(currentUser.id!);
+        setUnreadCount(count);
+      } catch (error) {
+        console.error('Error loading unread count:', error);
+      }
+    }
+  };
+
+  const handleLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsLoading(true);
+    try {
+      const user = await userService.login({ email: loginEmail, password: loginPassword });
+      setCurrentUser(user);
+      localStorage.setItem('user', JSON.stringify(user));
+      setShowLogin(false);
+      setLoginEmail('');
+      setLoginPassword('');
+      toast.success(`¡Bienvenido ${user.name}!`);
+      await loadUnreadCount();
+    } catch (error) {
+      toast.error('Credenciales inválidas');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleRegister = async (userData: any) => {
+    setIsLoading(true);
+    try {
+      const newUser = await userService.register(userData);
+      toast.success('¡Registro exitoso! Ahora puedes iniciar sesión');
+      setShowRegister(false);
+    } catch (error) {
+      toast.error('Error al registrarse');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleLogout = () => {
+    setCurrentUser(null);
+    localStorage.removeItem('user');
+    setUnreadCount(0);
+    toast.success('Sesión cerrada correctamente');
+  };
+
   return (
-    <div style={{ backgroundColor: '#f8fafc', minHeight: '100vh', padding: '24px', fontFamily: 'system-ui' }}>
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
+      <Toaster position="top-right" />
       
-      {/* Header General */}
-      <header style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '32px', borderBottom: '2px solid #e2e8f0', paddingBottom: '16px' }}>
-        <ShieldCheck size={36} color="#10b981" />
-        <h1 style={{ margin: 0, fontSize: '28px', color: '#0f172a' }}>Sanos y Salvos</h1>
-      </header>
+      <Navbar 
+        currentUser={currentUser}
+        unreadCount={unreadCount}
+        onLogin={() => setShowLogin(true)}
+        onRegister={() => setShowRegister(true)}
+        onLogout={handleLogout}
+      />
 
-      {/* Grid Principal: Izquierda (Mapa y Tarjetas), Derecha (Formulario) */}
-      <div style={{
-        display: 'grid',
-        gridTemplateColumns: '1fr minmax(300px, 420px)',
-        gap: '32px',
-        alignItems: 'start'
-      }}>
-        
-        {/* Columna Izquierda */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '32px' }}>
-          {/* Módulo del Mapa Real */}
-          <section>
-            <UiMap />
-          </section>
+      <Dashboard currentUserId={currentUser?.id} />
 
-          {/* Módulo de la Cartelera */}
-          <section>
-            <h2 style={{ fontSize: '20px', color: '#334155', marginBottom: '16px' }}>Mascotas perdidas recientemente</h2>
-            <div style={{
-              display: 'grid',
-              gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))',
-              gap: '20px'
-            }}>
-              {REPORTES_MOCK.map(reporte => (
-                <UiReportCard key={reporte.id} report={reporte} />
-              ))}
+      {/* Login Modal */}
+      {showLogin && (
+        <>
+          <div 
+            className="fixed inset-0 bg-black/50 backdrop-blur-sm"
+            style={{ zIndex: 9998 }}
+            onClick={() => setShowLogin(false)}
+          />
+          <div 
+            className="fixed inset-0 flex items-center justify-center p-4"
+            style={{ zIndex: 9999 }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="bg-white dark:bg-gray-800 rounded-xl max-w-md w-full p-6 shadow-2xl">
+              <h2 className="text-2xl font-bold mb-4 dark:text-white">Iniciar Sesión</h2>
+              <form onSubmit={handleLogin}>
+                <input
+                  type="email"
+                  placeholder="Email"
+                  value={loginEmail}
+                  onChange={(e) => setLoginEmail(e.target.value)}
+                  className="w-full p-3 border rounded-lg mb-3 dark:bg-gray-700 dark:border-gray-600 focus:ring-red-500 focus:border-red-500 dark:text-white"
+                  required
+                />
+                <input
+                  type="password"
+                  placeholder="Contraseña"
+                  value={loginPassword}
+                  onChange={(e) => setLoginPassword(e.target.value)}
+                  className="w-full p-3 border rounded-lg mb-4 dark:bg-gray-700 dark:border-gray-600 focus:ring-red-500 focus:border-red-500 dark:text-white"
+                  required
+                />
+                <button
+                  type="submit"
+                  disabled={isLoading}
+                  className="w-full bg-red-600 text-white p-3 rounded-lg hover:bg-red-700 transition font-semibold"
+                >
+                  {isLoading ? 'Ingresando...' : 'Ingresar'}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setShowLogin(false)}
+                  className="w-full mt-2 text-gray-500 p-2 hover:text-gray-700 transition dark:text-gray-400"
+                >
+                  Cancelar
+                </button>
+              </form>
             </div>
-          </section>
-        </div>
+          </div>
+        </>
+      )}
 
-        {/* Columna Derecha: Formulario Fijo */}
-        <section style={{ position: 'sticky', top: '24px' }}>
-          <UiPetForm />
-        </section>
-
-      </div>
+      {/* Register Modal */}
+      {showRegister && (
+        <>
+          <div 
+            className="fixed inset-0 bg-black/50 backdrop-blur-sm"
+            style={{ zIndex: 9998 }}
+            onClick={() => setShowRegister(false)}
+          />
+          <div 
+            className="fixed inset-0 flex items-center justify-center p-4"
+            style={{ zIndex: 9999 }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="bg-white dark:bg-gray-800 rounded-xl max-w-md w-full p-6 shadow-2xl">
+              <h2 className="text-2xl font-bold mb-4 dark:text-white">Registrarse</h2>
+              <form onSubmit={(e) => {
+                e.preventDefault();
+                const formData = new FormData(e.currentTarget);
+                handleRegister({
+                  name: formData.get('name'),
+                  email: formData.get('email'),
+                  password: formData.get('password'),
+                  phone: formData.get('phone'),
+                  role: 'CITIZEN'
+                });
+              }}>
+                <input
+                  name="name"
+                  type="text"
+                  placeholder="Nombre completo"
+                  className="w-full p-3 border rounded-lg mb-3 dark:bg-gray-700 dark:border-gray-600 focus:ring-red-500 focus:border-red-500 dark:text-white"
+                  required
+                />
+                <input
+                  name="email"
+                  type="email"
+                  placeholder="Email"
+                  className="w-full p-3 border rounded-lg mb-3 dark:bg-gray-700 dark:border-gray-600 focus:ring-red-500 focus:border-red-500 dark:text-white"
+                  required
+                />
+                <input
+                  name="password"
+                  type="password"
+                  placeholder="Contraseña"
+                  className="w-full p-3 border rounded-lg mb-3 dark:bg-gray-700 dark:border-gray-600 focus:ring-red-500 focus:border-red-500 dark:text-white"
+                  required
+                />
+                <input
+                  name="phone"
+                  type="tel"
+                  placeholder="Teléfono"
+                  className="w-full p-3 border rounded-lg mb-4 dark:bg-gray-700 dark:border-gray-600 focus:ring-red-500 focus:border-red-500 dark:text-white"
+                />
+                <button
+                  type="submit"
+                  disabled={isLoading}
+                  className="w-full bg-red-600 text-white p-3 rounded-lg hover:bg-red-700 transition font-semibold"
+                >
+                  {isLoading ? 'Registrando...' : 'Registrarse'}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setShowRegister(false)}
+                  className="w-full mt-2 text-gray-500 p-2 hover:text-gray-700 transition dark:text-gray-400"
+                >
+                  Cancelar
+                </button>
+              </form>
+            </div>
+          </div>
+        </>
+      )}
     </div>
   );
 }

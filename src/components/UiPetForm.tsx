@@ -1,133 +1,318 @@
 import React, { useState } from 'react';
-import { AlertCircle, CheckCircle, Upload } from 'lucide-react';
+import { AlertCircle, CheckCircle, Upload, MapPin, Loader2 } from 'lucide-react';
+import { AddressSearch } from './AddressSearch';
+import petService from '../service/pet.service';
+import imageService from '../service/image.service';
+import geoService from '../service/geo.service';
+import type { Mascota, Ubicacion } from '../types';
 
-export const UiPetForm: React.FC = () => {
-  const [nombre, setNombre] = useState('');
-  const [especie, setEspecie] = useState('Perro');
-  const [descripcion, setDescripcion] = useState('');
-  const [ultimaUbicacion, setUltimaUbicacion] = useState('');
-  const [enviado, setEnviado] = useState(false);
+interface UiPetFormProps {
+  ownerId?: string;
+  onSuccess?: (mascota: Mascota) => void;
+}
 
-  const handleSubmit = (e: React.FormEvent) => {
+export const UiPetForm: React.FC<UiPetFormProps> = ({ ownerId = 'user123', onSuccess }) => {
+  const [formData, setFormData] = useState({
+    name: '',
+    species: 'Perro',
+    breed: '',
+    color: '',
+    size: 'Mediano',
+    description: '',
+    lastLocation: {
+      latitude: -33.4489,
+      longitude: -70.6693,
+      address: '',
+      street: '',
+      houseNumber: '',
+      city: '',
+      postalCode: ''
+    }
+  });
+  const [selectedImage, setSelectedImage] = useState<File | null>(null);
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState(false);
+
+  const handleLocationSelect = (lat: number, lng: number, address: string, fullAddress: any) => {
+    setFormData(prev => ({
+      ...prev,
+      lastLocation: {
+        latitude: lat,
+        longitude: lng,
+        address: address,
+        street: fullAddress?.road || fullAddress?.street || '',
+        houseNumber: fullAddress?.house_number || '',
+        city: fullAddress?.city || fullAddress?.town || fullAddress?.village || '',
+        postalCode: fullAddress?.postcode || ''
+      }
+    }));
+  };
+
+  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setSelectedImage(file);
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setImagePreview(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
-    // El JSON mockeado que calzará con el pet-service
-    const nuevoReporte = {
-      nombre,
-      especie,
-      descripcion,
-      ultimaUbicacion,
-      estado: 'PERDIDO',
-      fechaRegistro: new Date().toISOString()
-    };
+    setIsSubmitting(true);
+    setError(null);
 
-    console.log('Datos listos para enviar:', nuevoReporte);
-    
-    setEnviado(true);
-    setNombre('');
-    setDescripcion('');
-    setUltimaUbicacion('');
+    try {
+      let imageId = null;
+      
+      if (selectedImage) {
+        const tempId = `img_${Date.now()}`;
+        const imageResponse = await imageService.upload(tempId, selectedImage);
+        imageId = imageResponse.imageId;
+      }
 
-    setTimeout(() => setEnviado(false), 4000);
+      const newPet: Mascota = {
+        name: formData.name,
+        species: formData.species,
+        breed: formData.breed,
+        color: formData.color,
+        size: formData.size,
+        status: 'LOST',
+        imageId: imageId || undefined,
+        ownerId: ownerId,
+        description: formData.description,
+        reportedAt: new Date().toISOString(),
+        lastLocation: {
+          latitude: formData.lastLocation.latitude,
+          longitude: formData.lastLocation.longitude,
+          address: formData.lastLocation.address
+        }
+      };
+
+      const createdPet = await petService.create(newPet);
+
+      if (createdPet.id && formData.lastLocation.latitude && formData.lastLocation.longitude) {
+        const ubicacion: Ubicacion = {
+          reportId: createdPet.id,
+          descripcion: `Mascota ${formData.name} reportada en ${formData.lastLocation.address || 'ubicación desconocida'}`,
+          fechaRegistro: new Date().toISOString(),
+          posicion: {
+            type: 'Point',
+            coordinates: [formData.lastLocation.longitude, formData.lastLocation.latitude]
+          }
+        };
+        await geoService.create(ubicacion);
+      }
+
+      setSuccess(true);
+      setFormData({
+        name: '',
+        species: 'Perro',
+        breed: '',
+        color: '',
+        size: 'Mediano',
+        description: '',
+        lastLocation: {
+          latitude: -33.4489,
+          longitude: -70.6693,
+          address: '',
+          street: '',
+          houseNumber: '',
+          city: '',
+          postalCode: ''
+        }
+      });
+      setSelectedImage(null);
+      setImagePreview(null);
+      
+      if (onSuccess) onSuccess(createdPet);
+      
+      setTimeout(() => setSuccess(false), 4000);
+    } catch (err) {
+      console.error('Error creating report:', err);
+      setError('Error al crear el reporte. Por favor, intenta nuevamente.');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
-    <div style={{
-      backgroundColor: '#ffffff',
-      padding: '24px',
-      borderRadius: '12px',
-      boxShadow: '0 4px 6px -1px rgba(0,0,0,0.1)',
-      border: '1px solid #e2e8f0',
-      fontFamily: 'system-ui, sans-serif'
-    }}>
-      <h3 style={{ margin: '0 0 16px 0', fontSize: '20px', color: '#1e293b', display: 'flex', alignItems: 'center', gap: '8px' }}>
-        <AlertCircle color="#ef4444" />
-        Ingresar Reporte de Mascota
+    <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md p-6">
+      <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
+        <AlertCircle className="h-5 w-5 text-red-500" />
+        Reportar Mascota Perdida
       </h3>
 
-      {enviado && (
-        <div style={{
-          backgroundColor: '#d1fae5',
-          color: '#065f46',
-          padding: '12px',
-          borderRadius: '6px',
-          marginBottom: '16px',
-          fontSize: '14px',
-          display: 'flex',
-          alignItems: 'center',
-          gap: '8px',
-          fontWeight: '500'
-        }}>
-          <CheckCircle size={18} />
-          ¡Formulario validado localmente con éxito!
+      {success && (
+        <div className="bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 p-3 rounded-lg mb-4 flex items-center gap-2">
+          <CheckCircle className="h-4 w-4" />
+          ¡Reporte creado exitosamente!
         </div>
       )}
 
-      <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-          <label style={{ fontSize: '14px', fontWeight: '6px', color: '#475569' }}>Nombre de la mascota</label>
-          <input
-            type="text"
-            required
-            value={nombre}
-            onChange={(e) => setNombre(e.target.value)}
-            placeholder="Ej: Rocky, Luna..."
-            style={{ padding: '10px', borderRadius: '6px', border: '1px solid #cbd5e1', fontSize: '14px' }}
+      {error && (
+        <div className="bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400 p-3 rounded-lg mb-4">
+          {error}
+        </div>
+      )}
+
+      <form onSubmit={handleSubmit} className="space-y-4">
+        {/* Foto */}
+        <div>
+          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+            Foto de la mascota
+          </label>
+          <div className="flex items-center gap-3">
+            <label className="cursor-pointer bg-gray-100 dark:bg-gray-700 px-4 py-2 rounded-lg flex items-center gap-2 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600 transition">
+              <Upload className="h-4 w-4" />
+              Subir foto
+              <input type="file" accept="image/*" onChange={handleImageChange} hidden />
+            </label>
+            {imagePreview && (
+              <img src={imagePreview} alt="Preview" className="w-12 h-12 object-cover rounded-lg" />
+            )}
+          </div>
+        </div>
+
+        {/* Nombre y Especie */}
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Nombre *</label>
+            <input
+              placeholder="Nombre de la mascota"
+              value={formData.name}
+              onChange={(e) => setFormData({...formData, name: e.target.value})}
+              className="w-full p-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-red-500 focus:border-red-500"
+              required
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Especie *</label>
+            <select
+              value={formData.species}
+              onChange={(e) => setFormData({...formData, species: e.target.value})}
+              className="w-full p-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-red-500 focus:border-red-500"
+            >
+              <option>Perro</option>
+              <option>Gato</option>
+              <option>Otro</option>
+            </select>
+          </div>
+        </div>
+
+        {/* Raza y Color */}
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Raza</label>
+            <input
+              placeholder="Raza"
+              value={formData.breed}
+              onChange={(e) => setFormData({...formData, breed: e.target.value})}
+              className="w-full p-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-red-500 focus:border-red-500"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Color</label>
+            <input
+              placeholder="Color"
+              value={formData.color}
+              onChange={(e) => setFormData({...formData, color: e.target.value})}
+              className="w-full p-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-red-500 focus:border-red-500"
+            />
+          </div>
+        </div>
+
+        {/* Búsqueda de dirección */}
+        <div>
+          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1 flex items-center gap-1">
+            <MapPin className="h-4 w-4" /> Buscar ubicación *
+          </label>
+          <AddressSearch 
+            onLocationSelect={handleLocationSelect}
+            placeholder="Ej: Av. Providencia 1200, Santiago"
           />
+          <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+            Busca por dirección, calle con número o sector
+          </p>
         </div>
 
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-          <label style={{ fontSize: '14px', fontWeight: '6px', color: '#475569' }}>Especie</label>
-          <select
-            value={especie}
-            onChange={(e) => setEspecie(e.target.value)}
-            style={{ padding: '10px', borderRadius: '6px', border: '1px solid #cbd5e1', fontSize: '14px', backgroundColor: '#fff' }}
-          >
-            <option value="Perro">Perro</option>
-            <option value="Gato">Gato</option>
-            <option value="Otro">Otro</option>
-          </select>
-        </div>
+        {/* Dirección seleccionada */}
+        {formData.lastLocation.address && (
+          <div className="bg-blue-50 dark:bg-blue-900/20 p-3 rounded-lg">
+            <p className="text-sm font-medium text-blue-700 dark:text-blue-400 mb-1">📍 Ubicación seleccionada:</p>
+            <p className="text-sm text-gray-700 dark:text-gray-300">{formData.lastLocation.address}</p>
+            {(formData.lastLocation.street || formData.lastLocation.city) && (
+              <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                {formData.lastLocation.street && `Calle: ${formData.lastLocation.street}`}
+                {formData.lastLocation.houseNumber && ` ${formData.lastLocation.houseNumber}`}
+                {formData.lastLocation.city && ` • ${formData.lastLocation.city}`}
+              </p>
+            )}
+          </div>
+        )}
 
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-          <label style={{ fontSize: '14px', fontWeight: '6px', color: '#475569' }}>Última ubicación conocida</label>
-          <input
-            type="text"
-            required
-            value={ultimaUbicacion}
-            onChange={(e) => setUltimaUbicacion(e.target.value)}
-            placeholder="Ej: Av. República con Alameda"
-            style={{ padding: '10px', borderRadius: '6px', border: '1px solid #cbd5e1', fontSize: '14px' }}
-          />
-        </div>
+        {/* Coordenadas manuales (avanzado) */}
+        <details className="text-sm">
+          <summary className="cursor-pointer text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300">
+            Ingresar coordenadas manualmente (avanzado)
+          </summary>
+          <div className="grid grid-cols-2 gap-3 mt-3">
+            <div>
+              <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Latitud</label>
+              <input
+                type="number"
+                step="any"
+                placeholder="Latitud"
+                value={formData.lastLocation.latitude}
+                onChange={(e) => setFormData({
+                  ...formData,
+                  lastLocation: {...formData.lastLocation, latitude: parseFloat(e.target.value)}
+                })}
+                className="w-full p-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Longitud</label>
+              <input
+                type="number"
+                step="any"
+                placeholder="Longitud"
+                value={formData.lastLocation.longitude}
+                onChange={(e) => setFormData({
+                  ...formData,
+                  lastLocation: {...formData.lastLocation, longitude: parseFloat(e.target.value)}
+                })}
+                className="w-full p-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm"
+              />
+            </div>
+          </div>
+        </details>
 
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-          <label style={{ fontSize: '14px', fontWeight: '6px', color: '#475569' }}>Descripción / Detalles</label>
+        {/* Descripción */}
+        <div>
+          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Descripción *</label>
           <textarea
-            required
+            placeholder="Describe a tu mascota: señas particulares, color de collar, comportamiento, etc."
             rows={3}
-            value={descripcion}
-            onChange={(e) => setDescripcion(e.target.value)}
-            placeholder="Color del pelaje, si tiene collar, señas particulares..."
-            style={{ padding: '10px', borderRadius: '6px', border: '1px solid #cbd5e1', fontSize: '14px', resize: 'vertical' }}
+            value={formData.description}
+            onChange={(e) => setFormData({...formData, description: e.target.value})}
+            className="w-full p-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-red-500 focus:border-red-500 resize-none"
+            required
           />
         </div>
 
         <button
           type="submit"
-          style={{
-            backgroundColor: '#ef4444',
-            color: '#ffffff',
-            padding: '12px',
-            border: 'none',
-            borderRadius: '6px',
-            fontSize: '15px',
-            fontWeight: 'bold',
-            cursor: 'pointer',
-            marginTop: '8px'
-          }}
+          disabled={isSubmitting}
+          className="w-full bg-red-600 text-white py-3 rounded-lg font-semibold hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 transition-colors"
         >
-          Publicar Alerta
+          {isSubmitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <AlertCircle className="h-4 w-4" />}
+          {isSubmitting ? 'Publicando...' : 'Publicar Alerta'}
         </button>
       </form>
     </div>
