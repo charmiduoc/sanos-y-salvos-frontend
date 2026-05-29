@@ -3,6 +3,7 @@ import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
 import { Map, Flame, Layers } from 'lucide-react';
 import L from 'leaflet';
 
+//pito
 import 'leaflet/dist/leaflet.css';
 import iconMarker from 'leaflet/dist/images/marker-icon.png';
 import iconRetina from 'leaflet/dist/images/marker-icon-2x.png';
