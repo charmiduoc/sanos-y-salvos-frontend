@@ -64,7 +64,7 @@ export const UiMap: React.FC = () => {
             onClick={() => setModoVista('heatmap')}
             style={{
               padding: '6px 12px', border: 'none', borderRadius: '6px', fontSize: '13px', fontWeight: 'bold', cursor: 'pointer',
-              backgroundColor: modoVista === '#ffffff' ? '#ffffff' : 'transparent',
+              backgroundColor: modoVista === 'heatmap' ? '#ffffff' : 'transparent',
               color: modoVista === 'heatmap' ? '#1e293b' : '#64748b'
             }}
           >

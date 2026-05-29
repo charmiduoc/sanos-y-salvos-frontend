@@ -1,4 +1,5 @@
 import { UiReportCard } from './components/UiReportCard';
+import { UiPetForm } from './components/UiPetForm';
 import { UiMap } from './components/UiMap';
 import { ShieldCheck } from 'lucide-react';
 
@@ -33,26 +34,39 @@ function App() {
         <h1 style={{ margin: 0, fontSize: '28px', color: '#0f172a' }}>Sanos y Salvos</h1>
       </header>
 
-      {/* Distribución limpia en una sola columna grande */}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '32px', maxWidth: '1000px', margin: '0 auto' }}>
+      {/* Grid Principal: Izquierda (Mapa y Tarjetas), Derecha (Formulario) */}
+      <div style={{
+        display: 'grid',
+        gridTemplateColumns: '1fr minmax(300px, 420px)',
+        gap: '32px',
+        alignItems: 'start'
+      }}>
         
-        {/* MÓDULO VISOR: ui-map */}
-        <section>
-          <UiMap />
-        </section>
+        {/* Columna Izquierda */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '32px' }}>
+          {/* Módulo del Mapa Real */}
+          <section>
+            <UiMap />
+          </section>
 
-        {/* MÓDULO LISTADO: ui-report-card */}
-        <section>
-          <h2 style={{ fontSize: '20px', color: '#334155', marginBottom: '16px' }}>Mascotas perdidas recientemente</h2>
-          <div style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))',
-            gap: '20px'
-          }}>
-            {REPORTES_MOCK.map(reporte => (
-              <UiReportCard key={reporte.id} report={reporte} />
-            ))}
-          </div>
+          {/* Módulo de la Cartelera */}
+          <section>
+            <h2 style={{ fontSize: '20px', color: '#334155', marginBottom: '16px' }}>Mascotas perdidas recientemente</h2>
+            <div style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))',
+              gap: '20px'
+            }}>
+              {REPORTES_MOCK.map(reporte => (
+                <UiReportCard key={reporte.id} report={reporte} />
+              ))}
+            </div>
+          </section>
+        </div>
+
+        {/* Columna Derecha: Formulario Fijo */}
+        <section style={{ position: 'sticky', top: '24px' }}>
+          <UiPetForm />
         </section>
 
       </div>
