@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { LogIn, LogOut, User, Sun, Moon, Home, Map, GitCompare, Menu, X } from 'lucide-react';
+import { Sun, Moon, Home, Map, GitCompare } from 'lucide-react';
 import { Link, useLocation } from 'react-router-dom';
 import { UiNotificationBell } from '../UiNotificationBell';
 import type { Usuario } from '../../types';
@@ -7,13 +7,12 @@ import logo from '../../assets/logo.png';
 
 interface NavbarProps {
   currentUser: Usuario | null;
-  unreadCount: number;
   onLogin: () => void;
   onRegister: () => void;
   onLogout: () => void;
 }
 
-export const Navbar: React.FC<NavbarProps> = ({ currentUser, unreadCount, onLogin, onRegister, onLogout }) => {
+export const Navbar: React.FC<NavbarProps> = ({ currentUser, onLogin, onRegister, onLogout }) => {
   const [isDark, setIsDark] = useState(false);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const location = useLocation();

@@ -1,4 +1,5 @@
 import API_CONFIG from './api.config';
+import { authFetch } from './auth.service';
 import type { Usuario } from '../types';
 
 class UserService {
@@ -6,7 +7,7 @@ class UserService {
 
   async getAll(): Promise<Usuario[]> {
     try {
-      const response = await fetch(this.baseUrl);
+      const response = await authFetch(this.baseUrl);
       const data = await response.json();
       if (data._embedded?.usuarioList) return data._embedded.usuarioList;
       if (Array.isArray(data)) return data;
@@ -18,7 +19,7 @@ class UserService {
   }
 
   async getById(id: string): Promise<Usuario> {
-    const response = await fetch(`${this.baseUrl}/${id}`);
+    const response = await authFetch(`${this.baseUrl}/${id}`);
     if (!response.ok) throw new Error('Usuario no encontrado');
     return response.json();
   }
@@ -39,12 +40,23 @@ class UserService {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(credentials)
     });
-    if (!response.ok) throw new Error('Credenciales inválidas');
-    return response.json();
+    if (!response.ok) {
+      const body = await response.text();
+      throw new Error(`Login failed: ${response.status} ${response.statusText}${body ? ` - ${body}` : ''}`);
+    }
+
+    const data = await response.json();
+    const user = (data.usuario ?? data.user ?? data) as Usuario;
+    return {
+      ...user,
+      token: data.token ?? data.accessToken ?? user.token ?? user.accessToken,
+      accessToken: data.accessToken ?? data.token ?? user.accessToken ?? user.token,
+      refreshToken: data.refreshToken ?? user.refreshToken
+    };
   }
 
   async update(id: string, usuario: Usuario): Promise<Usuario> {
-    const response = await fetch(`${this.baseUrl}/${id}`, {
+    const response = await authFetch(`${this.baseUrl}/${id}`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(usuario)
@@ -54,7 +66,7 @@ class UserService {
   }
 
   async delete(id: string): Promise<boolean> {
-    const response = await fetch(`${this.baseUrl}/${id}`, {
+    const response = await authFetch(`${this.baseUrl}/${id}`, {
       method: 'DELETE'
     });
     return response.ok;

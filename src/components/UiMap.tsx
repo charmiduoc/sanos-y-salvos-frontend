@@ -4,7 +4,7 @@ import { Map, Flame, Layers, Loader2 } from 'lucide-react';
 import L from 'leaflet';
 import geoService from '../service/geo.service';
 import petService from '../service/pet.service';
-import type { Ubicacion, Mascota } from '../types';
+import type { Ubicacion } from '../types';
 
 import 'leaflet/dist/leaflet.css';
 import iconMarker from 'leaflet/dist/images/marker-icon.png';

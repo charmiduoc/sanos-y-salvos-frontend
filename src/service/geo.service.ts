@@ -1,4 +1,5 @@
 import API_CONFIG from './api.config';
+import { authFetch } from './auth.service';
 import type { Ubicacion } from '../types';
 
 class GeoService {
@@ -6,7 +7,7 @@ class GeoService {
 
   async getAll(): Promise<Ubicacion[]> {
     try {
-      const response = await fetch(this.baseUrl);
+      const response = await authFetch(this.baseUrl);
       const data = await response.json();
       if (data._embedded?.ubicacionList) return data._embedded.ubicacionList;
       if (Array.isArray(data)) return data;
@@ -18,13 +19,13 @@ class GeoService {
   }
 
   async getById(id: string): Promise<Ubicacion> {
-    const response = await fetch(`${this.baseUrl}/${id}`);
+    const response = await authFetch(`${this.baseUrl}/${id}`);
     if (!response.ok) throw new Error('Ubicación no encontrada');
     return response.json();
   }
 
   async getByPetId(petId: string): Promise<Ubicacion[]> {
-    const response = await fetch(`${this.baseUrl}/pet/${petId}`);
+    const response = await authFetch(`${this.baseUrl}/pet/${petId}`);
     const data = await response.json();
     if (data._embedded?.ubicacionList) return data._embedded.ubicacionList;
     if (Array.isArray(data)) return data;
@@ -37,7 +38,7 @@ class GeoService {
     url.searchParams.append('lat', lat.toString());
     url.searchParams.append('radio', radiusKm.toString());
     
-    const response = await fetch(url.toString());
+    const response = await authFetch(url.toString());
     const data = await response.json();
     if (data._embedded?.ubicacionList) return data._embedded.ubicacionList;
     if (Array.isArray(data)) return data;
@@ -45,7 +46,7 @@ class GeoService {
   }
 
   async create(ubicacion: Ubicacion): Promise<Ubicacion> {
-    const response = await fetch(this.baseUrl, {
+    const response = await authFetch(this.baseUrl, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(ubicacion)
@@ -55,7 +56,7 @@ class GeoService {
   }
 
   async update(id: string, ubicacion: Ubicacion): Promise<Ubicacion> {
-    const response = await fetch(`${this.baseUrl}/${id}`, {
+    const response = await authFetch(`${this.baseUrl}/${id}`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(ubicacion)
@@ -65,7 +66,7 @@ class GeoService {
   }
 
   async delete(id: string): Promise<boolean> {
-    const response = await fetch(`${this.baseUrl}/${id}`, {
+    const response = await authFetch(`${this.baseUrl}/${id}`, {
       method: 'DELETE'
     });
     return response.ok;

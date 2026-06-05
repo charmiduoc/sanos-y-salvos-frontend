@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Bell, Check, X, Heart, MapPin, Users, AlertCircle } from 'lucide-react';
+import { Bell, Check, Heart, MapPin, Users, AlertCircle } from 'lucide-react';
 import notificationService from '../service/notification.service';
 import type { Notificacion } from '../types';
 
