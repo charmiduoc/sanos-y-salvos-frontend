@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import toast from 'react-hot-toast';
 import { PawPrint, MapPin, Heart, AlertTriangle, Search, Calendar, Award } from 'lucide-react';
 import { UiReportCard } from '../components/UiReportCard';
-import { UiPetForm } from '../components/UiPetForm';
 import { UiMap } from '../components/UiMap';
 import petService from '../service/pet.service';
 import type { Mascota } from '../types';
@@ -178,7 +178,23 @@ export const Dashboard: React.FC<DashboardProps> = ({ currentUserId }) => {
                 <div>
                   <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Mascotas Reportadas</h2>
                   <p className="text-sm text-gray-500 dark:text-gray-400">
-                    {filteredMascotas.length} {filteredMascotas.length === 1 ? 'mascota encontrada' : 'mascotas encontradas'}
+                    {filteredMascotas.length} {
+                      filter === 'all'
+                        ? filteredMascotas.length === 1
+                          ? 'reporte encontrado'
+                          : 'reportes encontrados'
+                        : filter === 'LOST'
+                          ? filteredMascotas.length === 1
+                            ? 'mascota perdida'
+                            : 'mascotas perdidas'
+                          : filter === 'FOUND'
+                            ? filteredMascotas.length === 1
+                              ? 'mascota encontrada'
+                              : 'mascotas encontradas'
+                            : filteredMascotas.length === 1
+                              ? 'mascota reunida'
+                              : 'mascotas reunidas'
+                    }
                   </p>
                 </div>
                 {filter !== 'all' && (
@@ -252,9 +268,26 @@ export const Dashboard: React.FC<DashboardProps> = ({ currentUserId }) => {
             transition={{ delay: 0.2 }}
             className="lg:col-span-1"
           >
-            <div className="sticky top-[88px]">
-              <UiPetForm ownerId={currentUserId} onSuccess={() => loadData()} />
-              
+            <div className="sticky top-[88px] space-y-6">
+              <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md p-6">
+                <h2 className="text-xl font-semibold text-gray-900 dark:text-white">Reportar una mascota</h2>
+                <p className="mt-3 text-gray-600 dark:text-gray-400">
+                  Los reportes ahora se crean en su propia página para una experiencia más clara y ordenada.
+                </p>
+                {currentUserId ? (
+                  <Link
+                    to="/report"
+                    className="inline-flex mt-4 items-center justify-center rounded-xl bg-red-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-red-700"
+                  >
+                    Crear nuevo reporte
+                  </Link>
+                ) : (
+                  <p className="mt-4 text-sm text-gray-500 dark:text-gray-400">
+                    Inicia sesión para ver la opción de crear un reporte.
+                  </p>
+                )}
+              </div>
+
               {/* Tips Card */}
               <motion.div 
                 initial={{ opacity: 0 }}
