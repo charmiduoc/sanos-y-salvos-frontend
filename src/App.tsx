@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { Toaster, toast } from 'react-hot-toast';
+import { Routes, Route, Navigate } from 'react-router-dom';
 import { Dashboard } from './pages/Dashboard';
+import { Report } from './pages/Report';
 import { Navbar } from './components/Layout/Navbar';
 import userService from './service/user.service';
 import { getStoredUser, setStoredUser, clearStoredUser } from './service/auth.service';
@@ -84,7 +86,13 @@ function App() {
         onLogout={handleLogout}
       />
 
-      <Dashboard currentUserId={currentUser?.id} />
+      <Routes>
+        <Route path="/" element={<Dashboard currentUserId={currentUser?.id} />} />
+        <Route
+          path="/report"
+          element={currentUser ? <Report ownerId={currentUser.id!} /> : <Navigate to="/" replace />}
+        />
+      </Routes>
 
       {/* Login Modal */}
       {showLogin && (
