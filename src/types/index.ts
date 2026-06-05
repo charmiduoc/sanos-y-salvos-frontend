@@ -5,9 +5,11 @@ export interface Usuario {
   password?: string;
   name: string;
   phone: string;
-  role: 'OWNER' | 'FOUNDER' | 'ADMIN';
+  role: string;
   petsIds: string[];
   active: boolean;
+  token?: string;
+  accessToken?: string;
   refreshToken?: string;
 }
 

@@ -1,4 +1,5 @@
 import API_CONFIG from './api.config';
+import { authFetch } from './auth.service';
 import type { Notificacion } from '../types';
 
 class NotificationService {
@@ -6,7 +7,7 @@ class NotificationService {
 
   async getAll(): Promise<Notificacion[]> {
     try {
-      const response = await fetch(this.baseUrl);
+      const response = await authFetch(this.baseUrl);
       const data = await response.json();
       if (data._embedded?.notificacionList) return data._embedded.notificacionList;
       if (Array.isArray(data)) return data;
@@ -18,14 +19,14 @@ class NotificationService {
   }
 
   async getById(id: string): Promise<Notificacion> {
-    const response = await fetch(`${this.baseUrl}/${id}`);
+    const response = await authFetch(`${this.baseUrl}/${id}`);
     if (!response.ok) throw new Error('Notificación no encontrada');
     return response.json();
   }
 
   async getByUserId(userId: string): Promise<Notificacion[]> {
     try {
-      const response = await fetch(`${this.baseUrl}/user/${userId}`);
+      const response = await authFetch(`${this.baseUrl}/user/${userId}`);
       const data = await response.json();
       if (data._embedded?.notificacionList) return data._embedded.notificacionList;
       if (Array.isArray(data)) return data;
@@ -38,7 +39,7 @@ class NotificationService {
 
   async getActiveByUserId(userId: string): Promise<Notificacion[]> {
     try {
-      const response = await fetch(`${this.baseUrl}/user/${userId}/activas`);
+      const response = await authFetch(`${this.baseUrl}/user/${userId}/activas`);
       const data = await response.json();
       if (data._embedded?.notificacionList) return data._embedded.notificacionList;
       if (Array.isArray(data)) return data;
@@ -51,7 +52,7 @@ class NotificationService {
 
   async getUnreadCount(userId: string): Promise<number> {
     try {
-      const response = await fetch(`${this.baseUrl}/user/${userId}/cuenta`);
+      const response = await authFetch(`${this.baseUrl}/user/${userId}/cuenta`);
       return response.json();
     } catch (error) {
       console.error('Error fetching unread count:', error);
@@ -60,7 +61,7 @@ class NotificationService {
   }
 
   async create(notificacion: Notificacion): Promise<Notificacion> {
-    const response = await fetch(this.baseUrl, {
+    const response = await authFetch(this.baseUrl, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(notificacion)
@@ -70,7 +71,7 @@ class NotificationService {
   }
 
   async markAsRead(id: string): Promise<Notificacion> {
-    const response = await fetch(`${this.baseUrl}/${id}/leer`, {
+    const response = await authFetch(`${this.baseUrl}/${id}/leer`, {
       method: 'PATCH'
     });
     if (!response.ok) throw new Error('Error al marcar como leída');
@@ -79,7 +80,7 @@ class NotificationService {
 
   async markAllAsRead(userId: string): Promise<void> {
     try {
-      await fetch(`${this.baseUrl}/user/${userId}/leer-todas`, {
+      await authFetch(`${this.baseUrl}/user/${userId}/leer-todas`, {
         method: 'PATCH'
       });
     } catch (error) {
@@ -88,7 +89,7 @@ class NotificationService {
   }
 
   async delete(id: string): Promise<boolean> {
-    const response = await fetch(`${this.baseUrl}/${id}`, {
+    const response = await authFetch(`${this.baseUrl}/${id}`, {
       method: 'DELETE'
     });
     return response.ok;

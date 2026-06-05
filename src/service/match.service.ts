@@ -1,11 +1,12 @@
 import API_CONFIG from './api.config';
+import { authFetch } from './auth.service';
 import type { MatchRequest, MatchAction, MatchResponse } from '../types';
 
 class MatchService {
   private baseUrl = API_CONFIG.match;
 
   async create(matchRequest: MatchRequest): Promise<MatchResponse> {
-    const response = await fetch(this.baseUrl, {
+    const response = await authFetch(this.baseUrl, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(matchRequest)
@@ -15,14 +16,14 @@ class MatchService {
   }
 
   async getById(matchId: string): Promise<MatchResponse> {
-    const response = await fetch(`${this.baseUrl}/${matchId}`);
+    const response = await authFetch(`${this.baseUrl}/${matchId}`);
     if (!response.ok) throw new Error('Match no encontrado');
     return response.json();
   }
 
   async getByOwnerId(ownerId: string): Promise<MatchResponse[]> {
     try {
-      const response = await fetch(`${this.baseUrl}/owner/${ownerId}`);
+      const response = await authFetch(`${this.baseUrl}/owner/${ownerId}`);
       const data = await response.json();
       if (data._embedded?.matchResponseDTOList) return data._embedded.matchResponseDTOList;
       if (Array.isArray(data)) return data;
@@ -35,7 +36,7 @@ class MatchService {
 
   async getByFounderId(founderId: string): Promise<MatchResponse[]> {
     try {
-      const response = await fetch(`${this.baseUrl}/founder/${founderId}`);
+      const response = await authFetch(`${this.baseUrl}/founder/${founderId}`);
       const data = await response.json();
       if (data._embedded?.matchResponseDTOList) return data._embedded.matchResponseDTOList;
       if (Array.isArray(data)) return data;
@@ -48,7 +49,7 @@ class MatchService {
 
   async getPendingForOwner(ownerId: string): Promise<MatchResponse[]> {
     try {
-      const response = await fetch(`${this.baseUrl}/owner/${ownerId}/pending`);
+      const response = await authFetch(`${this.baseUrl}/owner/${ownerId}/pending`);
       const data = await response.json();
       if (data._embedded?.matchResponseDTOList) return data._embedded.matchResponseDTOList;
       if (Array.isArray(data)) return data;
@@ -60,7 +61,7 @@ class MatchService {
   }
 
   async respond(action: MatchAction): Promise<MatchResponse> {
-    const response = await fetch(`${this.baseUrl}/respond`, {
+    const response = await authFetch(`${this.baseUrl}/respond`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(action)
@@ -70,7 +71,7 @@ class MatchService {
   }
 
   async complete(matchId: string): Promise<MatchResponse> {
-    const response = await fetch(`${this.baseUrl}/${matchId}/complete`, {
+    const response = await authFetch(`${this.baseUrl}/${matchId}/complete`, {
       method: 'PUT'
     });
     if (!response.ok) throw new Error('Error al completar match');
@@ -78,13 +79,13 @@ class MatchService {
   }
 
   async delete(matchId: string): Promise<void> {
-    await fetch(`${this.baseUrl}/${matchId}`, {
+    await authFetch(`${this.baseUrl}/${matchId}`, {
       method: 'DELETE'
     });
   }
 
   async exists(matchId: string): Promise<boolean> {
-    const response = await fetch(`${this.baseUrl}/${matchId}/exists`);
+    const response = await authFetch(`${this.baseUrl}/${matchId}/exists`);
     return response.json();
   }
 }

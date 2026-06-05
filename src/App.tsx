@@ -3,12 +3,11 @@ import { Toaster, toast } from 'react-hot-toast';
 import { Dashboard } from './pages/Dashboard';
 import { Navbar } from './components/Layout/Navbar';
 import userService from './service/user.service';
-import notificationService from './service/notification.service';
+import { getStoredUser, setStoredUser, clearStoredUser } from './service/auth.service';
 import type { Usuario } from './types';
 
 function App() {
   const [currentUser, setCurrentUser] = useState<Usuario | null>(null);
-  const [unreadCount, setUnreadCount] = useState(0);
   const [showLogin, setShowLogin] = useState(false);
   const [showRegister, setShowRegister] = useState(false);
   const [loginEmail, setLoginEmail] = useState('');
@@ -16,19 +15,11 @@ function App() {
   const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
-    const storedUser = localStorage.getItem('user');
+    const storedUser = getStoredUser();
     if (storedUser) {
-      setCurrentUser(JSON.parse(storedUser));
+      setCurrentUser(storedUser);
     }
   }, []);
-
-  useEffect(() => {
-    if (currentUser) {
-      loadUnreadCount();
-      const interval = setInterval(loadUnreadCount, 30000);
-      return () => clearInterval(interval);
-    }
-  }, [currentUser]);
 
   useEffect(() => {
     if (showLogin || showRegister) {
@@ -44,31 +35,20 @@ function App() {
     };
   }, [showLogin, showRegister]);
 
-  const loadUnreadCount = async () => {
-    if (currentUser) {
-      try {
-        const count = await notificationService.getUnreadCount(currentUser.id!);
-        setUnreadCount(count);
-      } catch (error) {
-        console.error('Error loading unread count:', error);
-      }
-    }
-  };
-
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
     try {
       const user = await userService.login({ email: loginEmail, password: loginPassword });
       setCurrentUser(user);
-      localStorage.setItem('user', JSON.stringify(user));
+      setStoredUser(user);
       setShowLogin(false);
       setLoginEmail('');
       setLoginPassword('');
       toast.success(`¡Bienvenido ${user.name}!`);
-      await loadUnreadCount();
     } catch (error) {
-      toast.error('Credenciales inválidas');
+      const message = error instanceof Error ? error.message : 'Credenciales inválidas';
+      toast.error(message);
     } finally {
       setIsLoading(false);
     }
@@ -77,7 +57,7 @@ function App() {
   const handleRegister = async (userData: any) => {
     setIsLoading(true);
     try {
-      const newUser = await userService.register(userData);
+      await userService.register(userData);
       toast.success('¡Registro exitoso! Ahora puedes iniciar sesión');
       setShowRegister(false);
     } catch (error) {
@@ -89,8 +69,7 @@ function App() {
 
   const handleLogout = () => {
     setCurrentUser(null);
-    localStorage.removeItem('user');
-    setUnreadCount(0);
+    clearStoredUser();
     toast.success('Sesión cerrada correctamente');
   };
 
@@ -100,7 +79,6 @@ function App() {
       
       <Navbar 
         currentUser={currentUser}
-        unreadCount={unreadCount}
         onLogin={() => setShowLogin(true)}
         onRegister={() => setShowRegister(true)}
         onLogout={handleLogout}
