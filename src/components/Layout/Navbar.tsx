@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Sun, Moon, Home, Map, GitCompare, AlertTriangle } from 'lucide-react';
+import { Sun, Moon, Home, Map, GitCompare, AlertTriangle, ShieldCheck } from 'lucide-react';
 import { Link, useLocation } from 'react-router-dom';
 import { UiNotificationBell } from '../UiNotificationBell';
 import type { Usuario } from '../../types';
@@ -27,6 +27,7 @@ export const Navbar: React.FC<NavbarProps> = ({ currentUser, onLogin, onRegister
     { path: '/map', label: 'Mapa', icon: Map },
     { path: '/matches', label: 'Coincidencias', icon: GitCompare },
     ...(currentUser ? [{ path: '/report', label: 'Nuevo Reporte', icon: AlertTriangle }] : []),
+    ...(currentUser?.role && /admin/i.test(currentUser.role) ? [{ path: '/admin', label: 'Admin', icon: ShieldCheck }] : []),
   ];
 
   const isActive = (path: string) => location.pathname === path;

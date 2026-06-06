@@ -3,6 +3,9 @@ import { Toaster, toast } from 'react-hot-toast';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { Dashboard } from './pages/Dashboard';
 import { Report } from './pages/Report';
+import { AdminPanel } from './pages/AdminPanel';
+import { MapPage } from './pages/MapPage';
+import { Matches } from './pages/Matches';
 import { Navbar } from './components/Layout/Navbar';
 import userService from './service/user.service';
 import { getStoredUser, setStoredUser, clearStoredUser } from './service/auth.service';
@@ -69,6 +72,10 @@ function App() {
     }
   };
 
+  const isAdmin = (user: Usuario | null): boolean => {
+    return Boolean(user?.role && /admin/i.test(user.role));
+  };
+
   const handleLogout = () => {
     setCurrentUser(null);
     clearStoredUser();
@@ -88,9 +95,15 @@ function App() {
 
       <Routes>
         <Route path="/" element={<Dashboard currentUserId={currentUser?.id} />} />
+        <Route path="/map" element={<MapPage />} />
+        <Route path="/matches" element={<Matches currentUser={currentUser} />} />
         <Route
           path="/report"
           element={currentUser ? <Report ownerId={currentUser.id!} /> : <Navigate to="/" replace />}
+        />
+        <Route
+          path="/admin"
+          element={isAdmin(currentUser) ? <AdminPanel currentUser={currentUser} /> : <Navigate to="/" replace />}
         />
       </Routes>
 
