@@ -117,4 +117,8 @@ export const Matches: React.FC<MatchesProps> = ({ currentUser }) => {
       </div>
     </div>
   );
+<<<<<<< HEAD
 };
+=======
+};
+>>>>>>> 27f71ba (Modificación margen de inocos de tarjetas de administrador y se se arregla crud para registrar usuarios)
