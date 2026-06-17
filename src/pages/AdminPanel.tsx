@@ -5,6 +5,7 @@ import { ShieldCheck, User, PawPrint, AlertTriangle, CheckCircle2, Square } from
 import userService from '../service/user.service';
 import petService from '../service/pet.service';
 import type { Usuario, Mascota } from '../types';
+import { AdminRegisterModal } from '../components/Auth/AdminRegisterModal';
 
 interface AdminPanelProps {
   currentUser: Usuario | null;
@@ -15,11 +16,15 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ currentUser }) => {
   const [pets, setPets] = useState<Mascota[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [refreshFlag, setRefreshFlag] = useState(0);
+  const [showRegisterModal, setShowRegisterModal] = useState(false);
 
   const loadData = async () => {
     setIsLoading(true);
     try {
-      const [usersResponse, petsResponse] = await Promise.all([userService.getAll(), petService.getAll()]);
+      const [usersResponse, petsResponse] = await Promise.all([
+        userService.getAll(), 
+        petService.getAll()
+      ]);
       setUsers(usersResponse);
       setPets(petsResponse);
     } catch (error) {
@@ -80,14 +85,31 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ currentUser }) => {
     }
   };
 
+  const handleRegisterUser = async (userData: any) => {
+    try {
+      await userService.register(userData);
+      setRefreshFlag((value) => value + 1);
+    } catch (error) {
+      throw error;
+    }
+  };
+
+  // Estadísticas corregidas para usar ROLE_ADMIN y ROLE_USER
   const stats = {
     totalUsers: users.length,
-    adminUsers: users.filter((user) => /admin/i.test(user.role)).length,
-    citizenUsers: users.filter((user) => /citizen/i.test(user.role)).length,
+    adminUsers: users.filter((user) => user.role === 'ROLE_ADMIN').length,
+    citizenUsers: users.filter((user) => user.role === 'ROLE_USER').length,
     totalPets: pets.length,
     lostPets: pets.filter((pet) => pet.status === 'LOST').length,
     foundPets: pets.filter((pet) => pet.status === 'FOUND').length,
     reunitedPets: pets.filter((pet) => pet.status === 'REUNITED').length,
+  };
+
+  // Función para mostrar el rol legible
+  const getRoleDisplay = (role: string) => {
+    if (role === 'ROLE_ADMIN') return 'Administrador';
+    if (role === 'ROLE_USER') return 'Ciudadano';
+    return role;
   };
 
   return (
@@ -112,7 +134,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ currentUser }) => {
           </div>
         </motion.div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-7 gap-6 mb-8">
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-7 gap-3 md:gap-4 mb-8">
           <StatCard title="Usuarios" value={stats.totalUsers} icon={User} color="blue" />
           <StatCard title="Admins" value={stats.adminUsers} icon={ShieldCheck} color="red" />
           <StatCard title="Ciudadanos" value={stats.citizenUsers} icon={User} color="yellow" />
@@ -129,7 +151,16 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ currentUser }) => {
         ) : (
           <div className="grid gap-6 xl:grid-cols-2">
             <section className="rounded-xl bg-white dark:bg-gray-800 p-6 shadow-md">
-              <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">Usuarios registrados</h2>
+              <div className="flex justify-between items-center mb-4">
+                <h2 className="text-xl font-semibold text-gray-900 dark:text-white">Usuarios registrados</h2>
+                <button
+                  onClick={() => setShowRegisterModal(true)}
+                  className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg flex items-center gap-2 transition-colors"
+                >
+                  <User className="h-4 w-4" />
+                  Nuevo Usuario
+                </button>
+              </div>
               <div className="space-y-3">
                 {users.length === 0 ? (
                   <p className="text-gray-500 dark:text-gray-400">No hay usuarios disponibles.</p>
@@ -141,7 +172,9 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ currentUser }) => {
                           <div>
                             <p className="font-semibold text-gray-900 dark:text-white">{user.name}</p>
                             <p className="text-sm text-gray-500 dark:text-gray-400">{user.email}</p>
-                            <p className="text-sm text-gray-500 dark:text-gray-400">Rol: {user.role}</p>
+                            <p className="text-sm text-gray-500 dark:text-gray-400">
+                              Rol: {getRoleDisplay(user.role)}
+                            </p>
                             <p className="text-sm text-gray-500 dark:text-gray-400">Estado: {user.active ? 'Activo' : 'Desactivado'}</p>
                           </div>
                           <div className="flex flex-wrap gap-2">
@@ -217,6 +250,13 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ currentUser }) => {
           </div>
         )}
       </div>
+
+      {showRegisterModal && (
+        <AdminRegisterModal
+          onClose={() => setShowRegisterModal(false)}
+          onRegister={handleRegisterUser}
+        />
+      )}
     </div>
   );
 };
@@ -261,15 +301,20 @@ const StatCard = ({ title, value, icon: Icon, color }: { title: string; value: n
     <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
-      className="rounded-3xl bg-white dark:bg-gray-800 p-6 shadow-md"
+      transition={{ duration: 0.3 }}
+      className="rounded-xl bg-white dark:bg-gray-800 p-3 shadow-md hover:shadow-lg transition-shadow duration-200"
     >
-      <div className="flex items-center justify-between gap-4">
-        <div>
-          <p className="text-sm text-gray-500 dark:text-gray-400">{title}</p>
-          <p className="mt-2 text-3xl font-bold text-gray-900 dark:text-white">{value}</p>
+      <div className="flex flex-col items-center text-center gap-2">
+        <div className={`rounded-xl p-2 ${colorClasses.bg} ${colorClasses.text} ${colorClasses.darkBg} ${colorClasses.darkText}`}>
+          <Icon className="h-5 w-5" />
         </div>
-        <div className={`rounded-2xl p-3 ${colorClasses.bg} ${colorClasses.text} ${colorClasses.darkBg} ${colorClasses.darkText}`}>
-          <Icon className="h-6 w-6" />
+        <div>
+          <p className="text-xs font-medium text-gray-500 dark:text-gray-400">
+            {title}
+          </p>
+          <p className="text-xl font-bold text-gray-900 dark:text-white leading-tight">
+            {value}
+          </p>
         </div>
       </div>
     </motion.div>
