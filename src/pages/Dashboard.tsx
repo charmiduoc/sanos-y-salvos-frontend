@@ -1,11 +1,13 @@
+// src/pages/Dashboard.tsx
 import React, { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import toast from 'react-hot-toast';
 import { PawPrint, MapPin, Heart, AlertTriangle, Search, Calendar, Award } from 'lucide-react';
 import { UiReportCard } from '../components/UiReportCard';
 import { UiMap } from '../components/UiMap';
 import petService from '../service/pet.service';
+import userService from '../service/user.service';
 import type { Mascota } from '../types';
 
 interface DashboardProps {
@@ -17,21 +19,55 @@ export const Dashboard: React.FC<DashboardProps> = ({ currentUserId }) => {
   const [isLoading, setIsLoading] = useState(true);
   const [filter, setFilter] = useState<'all' | 'LOST' | 'FOUND' | 'REUNITED'>('all');
   const [searchTerm, setSearchTerm] = useState('');
+  const navigate = useNavigate();
 
   useEffect(() => {
     loadData();
-  }, []);
+  }, [currentUserId]);
 
   const loadData = async () => {
     try {
       setIsLoading(true);
-      const pets = await petService.getAll();
+      
+      console.log('Dashboard - currentUserId:', currentUserId);
+      
+      let pets: Mascota[] = [];
+      
+      if (currentUserId) {
+        console.log('Cargando mascotas del usuario:', currentUserId);
+        const userPets = await userService.getMyPets(currentUserId);
+        console.log('Mascotas del usuario encontradas:', userPets.length);
+        pets = userPets;
+      } else {
+        console.log('Cargando todas las mascotas');
+        const allPets = await petService.getAll();
+        console.log('Todas las mascotas encontradas:', allPets.length);
+        pets = allPets;
+      }
+      
       setMascotas(pets);
     } catch (error) {
       console.error('Error loading pets:', error);
       toast.error('Error al cargar las mascotas');
+      setMascotas([]);
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  // Función para eliminar un reporte
+  const handleDeleteReport = async (petId: string) => {
+    try {
+      // Eliminar de la API
+      await petService.delete(petId);
+      
+      // Actualizar el estado local
+      setMascotas(prev => prev.filter(pet => pet.id !== petId));
+      
+      toast.success('Reporte eliminado exitosamente');
+    } catch (error) {
+      console.error('Error deleting report:', error);
+      toast.error('Error al eliminar el reporte');
     }
   };
 
@@ -45,9 +81,24 @@ export const Dashboard: React.FC<DashboardProps> = ({ currentUserId }) => {
   const filteredMascotas = mascotas
     .filter(p => filter === 'all' || p.status === filter)
     .filter(p => 
-      p.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
+      p.name?.toLowerCase().includes(searchTerm.toLowerCase()) || 
       (p.description && p.description.toLowerCase().includes(searchTerm.toLowerCase()))
     );
+
+  const handleViewLocation = (petId: string) => {
+    const pet = mascotas.find(p => p.id === petId);
+    if (pet?.lastLocation) {
+      const { latitude, longitude } = pet.lastLocation;
+      window.open(`https://www.google.com/maps?q=${latitude},${longitude}`, '_blank');
+      toast.success('Abriendo ubicación en Google Maps');
+    } else {
+      toast.error('No hay ubicación disponible para esta mascota');
+    }
+  };
+
+  const handleViewDetails = (petId: string) => {
+    navigate(`/pet/${petId}`);
+  };
 
   const StatCard = ({ title, value, icon: Icon, color }: { title: string; value: number; icon: any; color: string }) => (
     <motion.div 
@@ -77,7 +128,9 @@ export const Dashboard: React.FC<DashboardProps> = ({ currentUserId }) => {
           className="mb-8"
         >
           <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Dashboard</h1>
-          <p className="text-gray-600 dark:text-gray-400 mt-1">Bienvenido al sistema de gestión de mascotas</p>
+          <p className="text-gray-600 dark:text-gray-400 mt-1">
+            {currentUserId ? `Tus mascotas reportadas (${mascotas.length})` : 'Bienvenido al sistema de gestión de mascotas'}
+          </p>
         </motion.div>
 
         {/* Stats Grid */}
@@ -147,36 +200,19 @@ export const Dashboard: React.FC<DashboardProps> = ({ currentUserId }) => {
 
         {/* Main Content */}
         <div className="grid lg:grid-cols-3 gap-8">
-          {/* Left Column - Map and List */}
+          {/* Left Column - List and Map */}
           <div className="lg:col-span-2 space-y-6">
-            {/* Map Section */}
-            <motion.div 
-              initial={{ opacity: 0, x: -20 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ delay: 0.2 }}
-              className="bg-white dark:bg-gray-800 rounded-xl shadow-md overflow-hidden"
-            >
-              <div className="p-4 border-b dark:border-gray-700">
-                <div className="flex justify-between items-center">
-                  <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Mapa de Avistamientos</h2>
-                  <div className="flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400">
-                    <Calendar className="h-3 w-3" />
-                    <span>Actualizado en tiempo real</span>
-                  </div>
-                </div>
-              </div>
-              <UiMap />
-            </motion.div>
-
             {/* Pets Grid */}
             <motion.div
               initial={{ opacity: 0, x: -20 }}
               animate={{ opacity: 1, x: 0 }}
-              transition={{ delay: 0.3 }}
+              transition={{ delay: 0.2 }}
             >
               <div className="flex justify-between items-center mb-4">
                 <div>
-                  <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Mascotas Reportadas</h2>
+                  <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
+                    {currentUserId ? 'Mis Mascotas Reportadas' : 'Mascotas Reportadas'}
+                  </h2>
                   <p className="text-sm text-gray-500 dark:text-gray-400">
                     {filteredMascotas.length} {
                       filter === 'all'
@@ -226,13 +262,25 @@ export const Dashboard: React.FC<DashboardProps> = ({ currentUserId }) => {
               ) : filteredMascotas.length === 0 ? (
                 <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md p-12 text-center">
                   <PawPrint className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                  <p className="text-gray-500 dark:text-gray-400">No hay mascotas que coincidan con los filtros</p>
+                  <p className="text-gray-500 dark:text-gray-400">
+                    {currentUserId 
+                      ? 'No has reportado ninguna mascota aún. ¡Crea tu primer reporte!' 
+                      : 'No hay mascotas que coincidan con los filtros'}
+                  </p>
+                  {currentUserId && (
+                    <Link
+                      to="/report"
+                      className="inline-block mt-4 px-6 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
+                    >
+                      Reportar una mascota
+                    </Link>
+                  )}
                   <button
                     onClick={() => {
                       setFilter('all');
                       setSearchTerm('');
                     }}
-                    className="mt-4 text-red-600 hover:text-red-700 text-sm"
+                    className="mt-4 text-red-600 hover:text-red-700 text-sm block w-full"
                   >
                     Limpiar filtros
                   </button>
@@ -252,12 +300,42 @@ export const Dashboard: React.FC<DashboardProps> = ({ currentUserId }) => {
                         transition={{ delay: index * 0.05 }}
                         exit={{ opacity: 0, y: -20 }}
                       >
-                        <UiReportCard report={mascota} />
+                        <UiReportCard 
+                          report={mascota} 
+                          onViewLocation={handleViewLocation}
+                          onViewDetails={handleViewDetails}
+                          onDelete={handleDeleteReport}
+                          currentUserId={currentUserId}
+                        />
                       </motion.div>
                     ))}
                   </motion.div>
                 </AnimatePresence>
               )}
+            </motion.div>
+
+            {/* Map Section - ACTUALIZADO */}
+            <motion.div 
+              initial={{ opacity: 0, x: -20 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ delay: 0.3 }}
+              className="bg-white dark:bg-gray-800 rounded-xl shadow-md overflow-hidden"
+            >
+              <div className="p-4 border-b dark:border-gray-700">
+                <div className="flex justify-between items-center">
+                  <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
+                    {currentUserId ? 'Mapa de tus avistamientos' : 'Mapa de Avistamientos'}
+                  </h2>
+                  <div className="flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400">
+                    <Calendar className="h-3 w-3" />
+                    <span>Actualizado en tiempo real</span>
+                  </div>
+                </div>
+              </div>
+              <UiMap 
+                currentUserId={currentUserId}
+                filterByUser={!!currentUserId}
+              />
             </motion.div>
           </div>
 

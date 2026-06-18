@@ -1,3 +1,4 @@
+// src/components/UiMap.tsx
 import React, { useState, useEffect } from 'react';
 import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
 import { Map, Flame, Layers, Loader2 } from 'lucide-react';
@@ -24,9 +25,15 @@ L.Marker.prototype.options.icon = DefaultIcon;
 interface LocationWithPet extends Ubicacion {
   petName?: string;
   petStatus?: string;
+  ownerId?: string;
 }
 
-export const UiMap: React.FC = () => {
+interface UiMapProps {
+  currentUserId?: string;
+  filterByUser?: boolean;
+}
+
+export const UiMap: React.FC<UiMapProps> = ({ currentUserId, filterByUser = false }) => {
   const [modoVista, setModoVista] = useState<'puntos' | 'heatmap'>('puntos');
   const [ubicaciones, setUbicaciones] = useState<LocationWithPet[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -36,21 +43,44 @@ export const UiMap: React.FC = () => {
 
   useEffect(() => {
     loadUbicaciones();
-  }, []);
+  }, [currentUserId, filterByUser]);
 
   const loadUbicaciones = async () => {
     try {
       setIsLoading(true);
-      const data = await geoService.getAll();
+      setError(null);
       
+      let ubicacionesData: Ubicacion[] = [];
+      
+      if (filterByUser && currentUserId) {
+        console.log('Cargando ubicaciones del usuario:', currentUserId);
+        
+        // Intentar método 1
+        ubicacionesData = await geoService.getUbicacionesByUserId(currentUserId);
+        console.log(`Método 1: ${ubicacionesData.length} ubicaciones encontradas`);
+        
+        // Si no encuentra, intentar método 2 (alternativo)
+        if (ubicacionesData.length === 0) {
+          console.log('Intentando método alternativo...');
+          ubicacionesData = await geoService.getUbicacionesByUserIdAlt(currentUserId);
+          console.log(`Método 2: ${ubicacionesData.length} ubicaciones encontradas`);
+        }
+      } else {
+        console.log('Cargando todas las ubicaciones');
+        ubicacionesData = await geoService.getAll();
+        console.log(`Encontradas ${ubicacionesData.length} ubicaciones totales`);
+      }
+      
+      // Enriquecer con datos de las mascotas
       const ubicacionesConPet = await Promise.all(
-        data.map(async (ubicacion) => {
+        ubicacionesData.map(async (ubicacion) => {
           try {
             const pet = await petService.getById(ubicacion.reportId);
             return {
               ...ubicacion,
               petName: pet.name,
-              petStatus: pet.status
+              petStatus: pet.status,
+              ownerId: pet.ownerId
             };
           } catch {
             return ubicacion;
@@ -68,44 +98,63 @@ export const UiMap: React.FC = () => {
   };
 
   return (
-    <div style={{
-      backgroundColor: '#ffffff',
-      padding: '24px',
-      borderRadius: '12px',
-      boxShadow: '0 4px 6px -1px rgba(0,0,0,0.1)',
-      border: '1px solid #e2e8f0'
-    }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-        <h3 style={{ margin: 0, fontSize: '20px', color: '#1e293b', display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <Map color="#3b82f6" />
+    <div className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-md border border-gray-200 dark:border-gray-700">
+      <div className="flex flex-wrap justify-between items-center gap-3 mb-4">
+        <h3 className="text-xl font-semibold text-gray-900 dark:text-white flex items-center gap-2 m-0">
+          <Map className="text-blue-500 dark:text-blue-400" size={20} />
           Visor Geográfico
+          {filterByUser && currentUserId && (
+            <span className="text-xs font-normal text-gray-500 dark:text-gray-400 ml-2">
+              (Tus ubicaciones: {ubicaciones.length})
+            </span>
+          )}
         </h3>
 
-        <div style={{ display: 'flex', backgroundColor: '#f1f5f9', padding: '4px', borderRadius: '8px', gap: '4px' }}>
-          <button onClick={() => setModoVista('puntos')} style={{
-            padding: '6px 12px', border: 'none', borderRadius: '6px', fontSize: '13px', fontWeight: 'bold', cursor: 'pointer',
-            backgroundColor: modoVista === 'puntos' ? '#ffffff' : 'transparent',
-            color: modoVista === 'puntos' ? '#1e293b' : '#64748b'
-          }}>Marcadores</button>
-          <button onClick={() => setModoVista('heatmap')} style={{
-            padding: '6px 12px', border: 'none', borderRadius: '6px', fontSize: '13px', fontWeight: 'bold', cursor: 'pointer',
-            backgroundColor: modoVista === 'heatmap' ? '#ffffff' : 'transparent',
-            color: modoVista === 'heatmap' ? '#1e293b' : '#64748b'
-          }}><Flame size={14} style={{ display: 'inline', marginRight: '4px' }} /> Calor</button>
+        <div className="flex bg-gray-100 dark:bg-gray-700 p-1 rounded-lg gap-1">
+          <button 
+            onClick={() => setModoVista('puntos')} 
+            className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
+              modoVista === 'puntos' 
+                ? 'bg-white dark:bg-gray-600 text-gray-900 dark:text-white shadow-sm' 
+                : 'text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white'
+            }`}
+          >
+            Marcadores
+          </button>
+          <button 
+            onClick={() => setModoVista('heatmap')} 
+            className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors flex items-center gap-1 ${
+              modoVista === 'heatmap' 
+                ? 'bg-white dark:bg-gray-600 text-gray-900 dark:text-white shadow-sm' 
+                : 'text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white'
+            }`}
+          >
+            <Flame size={14} />
+            Calor
+          </button>
         </div>
       </div>
 
-      <div style={{ height: '400px', width: '100%', borderRadius: '8px', overflow: 'hidden', border: '1px solid #cbd5e1', position: 'relative',zIndex: 1 }}>
+      <div className="h-[400px] w-full rounded-lg overflow-hidden border border-gray-200 dark:border-gray-700 relative z-1">
         {isLoading ? (
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', backgroundColor: '#f8fafc' }}>
-            <Loader2 size={32} style={{ animation: 'spin 1s linear infinite', color: '#3b82f6' }} />
+          <div className="flex items-center justify-center h-full bg-gray-50 dark:bg-gray-900">
+            <Loader2 size={32} className="text-blue-500 dark:text-blue-400 animate-spin" />
           </div>
         ) : error ? (
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', color: '#dc2626' }}>
+          <div className="flex items-center justify-center h-full text-red-600 dark:text-red-400">
             {error}
           </div>
+        ) : ubicaciones.length === 0 ? (
+          <div className="flex flex-col items-center justify-center h-full bg-gray-50 dark:bg-gray-900 text-gray-500 dark:text-gray-400">
+            <Map size={48} className="mb-2 opacity-50" />
+            <p className="text-center">
+              {filterByUser 
+                ? 'No tienes ubicaciones registradas aún' 
+                : 'No hay ubicaciones disponibles'}
+            </p>
+          </div>
         ) : (
-          <MapContainer center={posicionCentral} zoom={13} style={{ height: '100%', width: '100%' }}>
+          <MapContainer center={posicionCentral} zoom={13} className="h-full w-full">
             <TileLayer
               attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
               url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
@@ -116,11 +165,22 @@ export const UiMap: React.FC = () => {
               return (
                 <Marker key={ubicacion.id} position={[coordinates[1], coordinates[0]]}>
                   <Popup>
-                    <div style={{ fontSize: '13px' }}>
-                      <strong>{ubicacion.petName || 'Mascota'}</strong><br />
-                      {ubicacion.descripcion}<br />
-                      <small>Estado: {ubicacion.petStatus || 'Desconocido'}</small><br />
-                      <small>{new Date(ubicacion.fechaRegistro).toLocaleString()}</small>
+                    <div className="text-sm">
+                      <strong className="text-gray-900 dark:text-white">
+                        {ubicacion.petName || 'Mascota'}
+                      </strong>
+                      <br />
+                      <span className="text-gray-600 dark:text-gray-300">
+                        {ubicacion.descripcion}
+                      </span>
+                      <br />
+                      <small className="text-gray-500 dark:text-gray-400">
+                        Estado: {ubicacion.petStatus || 'Desconocido'}
+                      </small>
+                      <br />
+                      <small className="text-gray-500 dark:text-gray-400">
+                        {new Date(ubicacion.fechaRegistro).toLocaleString()}
+                      </small>
                     </div>
                   </Popup>
                 </Marker>
@@ -129,19 +189,43 @@ export const UiMap: React.FC = () => {
           </MapContainer>
         )}
 
-        <div style={{
-          position: 'absolute', bottom: '12px', left: '12px', backgroundColor: 'rgba(255,255,255,0.9)',
-          padding: '6px 10px', borderRadius: '6px', fontSize: '11px', color: '#475569', zIndex: 1000,
-          display: 'flex', alignItems: 'center', gap: '6px'
-        }}>
+        <div className="absolute bottom-3 left-3 bg-white/90 dark:bg-gray-800/90 backdrop-blur-sm px-3 py-1.5 rounded-lg text-xs text-gray-600 dark:text-gray-300 flex items-center gap-1.5 z-[1000] shadow-md">
           <Layers size={12} />
           <span>{ubicaciones.length} ubicaciones cargadas</span>
         </div>
       </div>
+      
       <style>{`
         @keyframes spin {
           from { transform: rotate(0deg); }
           to { transform: rotate(360deg); }
+        }
+        .animate-spin {
+          animation: spin 1s linear infinite;
+        }
+        .leaflet-popup-content-wrapper {
+          background: white !important;
+          color: #1e293b !important;
+        }
+        .dark .leaflet-popup-content-wrapper {
+          background: #1e293b !important;
+          color: #e2e8f0 !important;
+        }
+        .leaflet-popup-tip {
+          background: white !important;
+        }
+        .dark .leaflet-popup-tip {
+          background: #1e293b !important;
+        }
+        .leaflet-popup-content-wrapper .leaflet-popup-content {
+          color: inherit !important;
+        }
+        .leaflet-popup-content-wrapper .leaflet-popup-content strong {
+          color: inherit !important;
+        }
+        .leaflet-popup-content-wrapper .leaflet-popup-content small {
+          color: inherit !important;
+          opacity: 0.8;
         }
       `}</style>
     </div>

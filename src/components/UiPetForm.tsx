@@ -7,11 +7,14 @@ import geoService from '../service/geo.service';
 import type { Mascota, Ubicacion } from '../types';
 
 interface UiPetFormProps {
-  ownerId?: string;
+  ownerId?: string; // Este viene del usuario logueado
   onSuccess?: (mascota: Mascota) => void;
 }
 
-export const UiPetForm: React.FC<UiPetFormProps> = ({ ownerId = 'user123', onSuccess }) => {
+export const UiPetForm: React.FC<UiPetFormProps> = ({ ownerId, onSuccess }) => {
+  // ELIMINAMOS el valor por defecto 'user123'
+  // Ahora si no viene ownerId, el formulario no se puede enviar
+  
   const [formData, setFormData] = useState({
     name: '',
     species: 'Perro',
@@ -34,6 +37,9 @@ export const UiPetForm: React.FC<UiPetFormProps> = ({ ownerId = 'user123', onSuc
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
+
+  // Log para depuración
+  console.log('🔍 UiPetForm - ownerId recibido:', ownerId);
 
   const handleLocationSelect = (lat: number, lng: number, address: string, fullAddress: any) => {
     setFormData(prev => ({
@@ -64,6 +70,13 @@ export const UiPetForm: React.FC<UiPetFormProps> = ({ ownerId = 'user123', onSuc
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // VALIDACIÓN: Verificar que el ownerId esté presente
+    if (!ownerId) {
+      setError('Debes iniciar sesión para reportar una mascota');
+      return;
+    }
+
     setIsSubmitting(true);
     setError(null);
 
@@ -76,6 +89,7 @@ export const UiPetForm: React.FC<UiPetFormProps> = ({ ownerId = 'user123', onSuc
         imageId = imageResponse.imageId;
       }
 
+      // Usar el ownerId que viene del prop (el ID real del usuario)
       const newPet: Mascota = {
         name: formData.name,
         species: formData.species,
@@ -84,7 +98,7 @@ export const UiPetForm: React.FC<UiPetFormProps> = ({ ownerId = 'user123', onSuc
         size: formData.size,
         status: 'LOST',
         imageId: imageId || undefined,
-        ownerId: ownerId,
+        ownerId: ownerId, // Este es el ID real del usuario
         description: formData.description,
         reportedAt: new Date().toISOString(),
         lastLocation: {
@@ -94,7 +108,11 @@ export const UiPetForm: React.FC<UiPetFormProps> = ({ ownerId = 'user123', onSuc
         }
       };
 
+      console.log('Creando mascota con ownerId:', ownerId);
+      console.log('Datos completos:', newPet);
+
       const createdPet = await petService.create(newPet);
+      console.log('Mascota creada:', createdPet);
 
       if (createdPet.id && formData.lastLocation.latitude && formData.lastLocation.longitude) {
         const ubicacion: Ubicacion = {
@@ -244,7 +262,7 @@ export const UiPetForm: React.FC<UiPetFormProps> = ({ ownerId = 'user123', onSuc
         {/* Dirección seleccionada */}
         {formData.lastLocation.address && (
           <div className="bg-blue-50 dark:bg-blue-900/20 p-3 rounded-lg">
-            <p className="text-sm font-medium text-blue-700 dark:text-blue-400 mb-1">📍 Ubicación seleccionada:</p>
+            <p className="text-sm font-medium text-blue-700 dark:text-blue-400 mb-1">Ubicación seleccionada:</p>
             <p className="text-sm text-gray-700 dark:text-gray-300">{formData.lastLocation.address}</p>
             {(formData.lastLocation.street || formData.lastLocation.city) && (
               <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
@@ -308,12 +326,31 @@ export const UiPetForm: React.FC<UiPetFormProps> = ({ ownerId = 'user123', onSuc
 
         <button
           type="submit"
-          disabled={isSubmitting}
-          className="w-full bg-red-600 text-white py-3 rounded-lg font-semibold hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 transition-colors"
+          disabled={isSubmitting || !ownerId}
+          className={`w-full py-3 rounded-lg font-semibold flex items-center justify-center gap-2 transition-colors ${
+            ownerId 
+              ? 'bg-red-600 text-white hover:bg-red-700' 
+              : 'bg-gray-400 text-gray-200 cursor-not-allowed'
+          }`}
         >
-          {isSubmitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <AlertCircle className="h-4 w-4" />}
-          {isSubmitting ? 'Publicando...' : 'Publicar Alerta'}
+          {isSubmitting ? (
+            <>
+              <Loader2 className="h-4 w-4 animate-spin" />
+              Publicando...
+            </>
+          ) : (
+            <>
+              <AlertCircle className="h-4 w-4" />
+              {ownerId ? 'Publicar Alerta' : 'Inicia sesión para publicar'}
+            </>
+          )}
         </button>
+        
+        {!ownerId && (
+          <p className="text-sm text-red-500 text-center">
+            Debes iniciar sesión para reportar una mascota
+          </p>
+        )}
       </form>
     </div>
   );

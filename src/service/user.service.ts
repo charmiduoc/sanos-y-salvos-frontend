@@ -1,3 +1,4 @@
+// src/service/user.service.ts
 import API_CONFIG from './api.config';
 import { authFetch, setStoredUser, getStoredUser } from './auth.service';
 import type { Usuario } from '../types';
@@ -31,16 +32,13 @@ class UserService {
     phone: string;
     role?: string;
   }): Promise<Usuario> {
-    // Convertir el rol al formato que espera el backend (con prefijo ROLE_)
-    let backendRole = 'ROLE_USER'; // valor por defecto
+    let backendRole = 'ROLE_USER';
     
     if (userData.role === 'ADMIN') {
       backendRole = 'ROLE_ADMIN';
     } else if (userData.role === 'CITIZEN') {
       backendRole = 'ROLE_USER';
     }
-    
-    console.log('🔄 Convirtiendo rol:', userData.role, '→', backendRole);
     
     const response = await authFetch(`${this.baseUrl}/register`, {
       method: 'POST',
@@ -62,7 +60,7 @@ class UserService {
         throw new Error('El email ya está registrado');
       }
       if (response.status === 403) {
-        throw new Error('No tienes permiso para registrar usuarios. Asegúrate de haber iniciado sesión como administrador.');
+        throw new Error('No tienes permiso para registrar usuarios.');
       }
       const error = await response.text();
       throw new Error(error || 'Error al registrar usuario');
@@ -73,8 +71,6 @@ class UserService {
   }
 
   async login(credentials: { email: string; password: string; rememberMe?: boolean }): Promise<Usuario> {
-    console.log('🔐 Intentando login para:', credentials.email);
-    
     const response = await fetch(`${this.baseUrl}/login`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -89,7 +85,6 @@ class UserService {
     const data = await response.json();
     const user = (data.usuario ?? data.user ?? data) as Usuario;
     
-    // Extraer el token de la respuesta
     const token = data.token ?? data.accessToken ?? user.token ?? user.accessToken;
     
     const userWithToken: Usuario = {
@@ -99,12 +94,64 @@ class UserService {
       refreshToken: data.refreshToken ?? user.refreshToken
     };
     
-    console.log('✅ Login exitoso - Rol del usuario:', userWithToken.role);
-    
-    // Guardar el usuario completo (con token) en localStorage
     setStoredUser(userWithToken);
-    
     return userWithToken;
+  }
+
+  // Obtener mascotas del usuario actual con fallback
+  async getMyPets(userId: string): Promise<any[]> {
+    console.log('🔍 getMyPets - Buscando mascotas para userId:', userId);
+    
+    try {
+      // Intentar obtener del endpoint específico del usuario
+      const response = await authFetch(`${this.baseUrl}/${userId}/pets`);
+      
+      if (response.ok) {
+        const data = await response.json();
+        const pets = data._embedded?.mascotaList || data || [];
+        console.log('getMyPets - Mascotas encontradas (endpoint usuario):', pets.length);
+        return pets;
+      }
+      
+      // Si el endpoint falla, hacer fallback: obtener todas y filtrar
+      console.log('getMyPets - Fallback: obteniendo todas las mascotas');
+      const allPetsResponse = await authFetch(API_CONFIG.pet);
+      
+      if (!allPetsResponse.ok) {
+        console.error('getMyPets - Error al obtener todas las mascotas');
+        return [];
+      }
+      
+      const allData = await allPetsResponse.json();
+      const allPets = allData._embedded?.mascotaList || allData || [];
+      
+      console.log('getMyPets - Total de mascotas:', allPets.length);
+      
+      // Filtrar por ownerId
+      const userPets = allPets.filter((pet: any) => pet.ownerId === userId);
+      
+      console.log(`getMyPets - Mascotas filtradas para usuario ${userId}:`, userPets.length);
+      console.log('getMyPets - Detalle:', userPets);
+      
+      return userPets;
+    } catch (error) {
+      console.error('getMyPets - Error:', error);
+      
+      // Último intento: obtener todas y filtrar
+      try {
+        console.log('getMyPets - Último intento: obtener todas las mascotas');
+        const response = await authFetch(API_CONFIG.pet);
+        if (!response.ok) return [];
+        const data = await response.json();
+        const allPets = data._embedded?.mascotaList || data || [];
+        const userPets = allPets.filter((pet: any) => pet.ownerId === userId);
+        console.log(`getMyPets - Mascotas encontradas en último intento:`, userPets.length);
+        return userPets;
+      } catch (finalError) {
+        console.error('getMyPets - Error en último intento:', finalError);
+        return [];
+      }
+    }
   }
 
   async update(id: string, usuario: Usuario): Promise<Usuario> {
@@ -124,12 +171,10 @@ class UserService {
     return response.ok;
   }
 
-  // Método para obtener el usuario actualmente logueado
   getCurrentUser(): Usuario | null {
     return getStoredUser();
   }
 
-  // Método para cerrar sesión
   logout(): void {
     localStorage.removeItem('user');
     sessionStorage.removeItem('user');

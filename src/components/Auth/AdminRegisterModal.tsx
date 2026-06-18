@@ -118,8 +118,8 @@ export const AdminRegisterModal: React.FC<AdminRegisterModalProps> = ({ onClose,
               onChange={(e) => setFormData({...formData, role: e.target.value})}
               className="w-full pl-10 p-3 border rounded-lg dark:bg-gray-700 dark:border-gray-600"
             >
-              <option value="CITIZEN">👤 Ciudadano (ROLE_USER)</option>
-              <option value="ADMIN">👑 Administrador (ROLE_ADMIN)</option>
+              <option value="CITIZEN">Ciudadano (ROLE_USER)</option>
+              <option value="ADMIN">Administrador (ROLE_ADMIN)</option>
             </select>
           </div>
 
