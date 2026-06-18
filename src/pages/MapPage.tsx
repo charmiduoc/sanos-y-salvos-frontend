@@ -28,8 +28,4 @@ export const MapPage: React.FC = () => {
       </div>
     </div>
   );
-<<<<<<< HEAD
 };
-=======
-};
->>>>>>> 27f71ba (Modificación margen de inocos de tarjetas de administrador y se se arregla crud para registrar usuarios)

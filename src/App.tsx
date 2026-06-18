@@ -6,6 +6,7 @@ import { Report } from './pages/Report';
 import { AdminPanel } from './pages/AdminPanel';
 import { MapPage } from './pages/MapPage';
 import { Matches } from './pages/Matches';
+import { PetDetailsPage } from './pages/PetDetailsPage'; // <-- IMPORTAR LA NUEVA PÁGINA
 import { Navbar } from './components/Layout/Navbar';
 import userService from './service/user.service';
 import { getStoredUser, setStoredUser, clearStoredUser } from './service/auth.service';
@@ -97,6 +98,7 @@ function App() {
         <Route path="/" element={<Dashboard currentUserId={currentUser?.id} />} />
         <Route path="/map" element={<MapPage />} />
         <Route path="/matches" element={<Matches currentUser={currentUser} />} />
+        <Route path="/pet/:id" element={<PetDetailsPage />} /> {/* <-- NUEVA RUTA */}
         <Route
           path="/report"
           element={currentUser ? <Report ownerId={currentUser.id!} /> : <Navigate to="/" replace />}

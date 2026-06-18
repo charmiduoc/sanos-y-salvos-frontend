@@ -36,8 +36,4 @@ export const Report: React.FC<ReportProps> = ({ ownerId }) => {
       </div>
     </div>
   );
-<<<<<<< HEAD
 };
-=======
-};
->>>>>>> 27f71ba (Modificación margen de inocos de tarjetas de administrador y se se arregla crud para registrar usuarios)
