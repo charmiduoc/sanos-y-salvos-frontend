@@ -1,10 +1,77 @@
-<!doctype html>
-<html lang="en">
+<!DOCTYPE html>
+<html lang="en" class="dark:bg-gray-900">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>sanos-y-salvos-frontend</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      tailwind.config = {
+        darkMode: 'class',
+        theme: {
+          extend: {
+            colors: {
+              primary: {
+                50: '#fef2f2',
+                100: '#fee2e2',
+                200: '#fecaca',
+                300: '#fca5a5',
+                400: '#f87171',
+                500: '#ef4444',
+                600: '#dc2626',
+                700: '#b91c1c',
+                800: '#991b1b',
+                900: '#7f1d1d',
+              }
+            }
+          }
+        }
+      }
+    </script>
+    
+    <!-- Estilos para corregir el z-index del mapa y modales -->
+    <style>
+      /* El mapa de Leaflet debe tener z-index bajo */
+      .leaflet-container {
+        z-index: 1 !important;
+      }
+      
+      .leaflet-pane,
+      .leaflet-top,
+      .leaflet-bottom,
+      .leaflet-control {
+        z-index: 1 !important;
+      }
+      
+      .leaflet-popup-pane,
+      .leaflet-marker-pane,
+      .leaflet-tile-pane,
+      .leaflet-shadow-pane,
+      .leaflet-overlay-pane {
+        z-index: 1 !important;
+      }
+      
+      /* Los modales deben tener z-index alto */
+      .modal-backdrop {
+        z-index: 9998 !important;
+      }
+      
+      .modal-container {
+        z-index: 9999 !important;
+      }
+      
+      /* Cualquier elemento fixed con backdrop debe estar arriba */
+      .fixed.inset-0 {
+        z-index: 9998 !important;
+      }
+      
+      /* Asegurar que el mapa no capture clicks cuando el modal está abierto */
+      body.modal-open .leaflet-container {
+        pointer-events: none;
+      }
+    </style>
+    
+    <title>Sanos y Salvos</title>
   </head>
   <body>
     <div id="root"></div>
