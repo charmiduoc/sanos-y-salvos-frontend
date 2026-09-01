@@ -7,14 +7,11 @@ import geoService from '../service/geo.service';
 import type { Mascota, Ubicacion } from '../types';
 
 interface UiPetFormProps {
-  ownerId?: string; // Este viene del usuario logueado
+  ownerId?: string;
   onSuccess?: (mascota: Mascota) => void;
 }
 
 export const UiPetForm: React.FC<UiPetFormProps> = ({ ownerId, onSuccess }) => {
-  // ELIMINAMOS el valor por defecto 'user123'
-  // Ahora si no viene ownerId, el formulario no se puede enviar
-  
   const [formData, setFormData] = useState({
     name: '',
     species: 'Perro',
@@ -38,7 +35,6 @@ export const UiPetForm: React.FC<UiPetFormProps> = ({ ownerId, onSuccess }) => {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
 
-  // Log para depuración
   console.log('🔍 UiPetForm - ownerId recibido:', ownerId);
 
   const handleLocationSelect = (lat: number, lng: number, address: string, fullAddress: any) => {
@@ -70,8 +66,7 @@ export const UiPetForm: React.FC<UiPetFormProps> = ({ ownerId, onSuccess }) => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
-    // VALIDACIÓN: Verificar que el ownerId esté presente
+
     if (!ownerId) {
       setError('Debes iniciar sesión para reportar una mascota');
       return;
@@ -82,29 +77,28 @@ export const UiPetForm: React.FC<UiPetFormProps> = ({ ownerId, onSuccess }) => {
 
     try {
       let imageId = null;
-      
+
       if (selectedImage) {
         const tempId = `img_${Date.now()}`;
         const imageResponse = await imageService.upload(tempId, selectedImage);
-        imageId = imageResponse.imageId;
+        imageId = imageResponse?.imageId || null;
       }
 
-      // Usar el ownerId que viene del prop (el ID real del usuario)
-      const newPet: Mascota = {
-        name: formData.name,
-        species: formData.species,
-        breed: formData.breed,
-        color: formData.color,
-        size: formData.size,
+      const newPet: any = {
+        name: formData.name || 'Sin nombre',
+        species: formData.species || 'Perro',
+        breed: formData.breed || '',
+        color: formData.color || '',
+        size: formData.size || 'Mediano',
         status: 'LOST',
         imageId: imageId || undefined,
-        ownerId: ownerId, // Este es el ID real del usuario
-        description: formData.description,
+        ownerId: ownerId,
+        description: formData.description || '',
         reportedAt: new Date().toISOString(),
         lastLocation: {
-          latitude: formData.lastLocation.latitude,
-          longitude: formData.lastLocation.longitude,
-          address: formData.lastLocation.address
+          latitude: formData.lastLocation.latitude || -33.4489,
+          longitude: formData.lastLocation.longitude || -70.6693,
+          address: formData.lastLocation.address || ''
         }
       };
 
@@ -114,8 +108,8 @@ export const UiPetForm: React.FC<UiPetFormProps> = ({ ownerId, onSuccess }) => {
       const createdPet = await petService.create(newPet);
       console.log('Mascota creada:', createdPet);
 
-      if (createdPet.id && formData.lastLocation.latitude && formData.lastLocation.longitude) {
-        const ubicacion: Ubicacion = {
+      if (createdPet?.id && formData.lastLocation.latitude && formData.lastLocation.longitude) {
+        const ubicacion: any = {
           reportId: createdPet.id,
           descripcion: `Mascota ${formData.name} reportada en ${formData.lastLocation.address || 'ubicación desconocida'}`,
           fechaRegistro: new Date().toISOString(),
@@ -147,9 +141,9 @@ export const UiPetForm: React.FC<UiPetFormProps> = ({ ownerId, onSuccess }) => {
       });
       setSelectedImage(null);
       setImagePreview(null);
-      
+
       if (onSuccess) onSuccess(createdPet);
-      
+
       setTimeout(() => setSuccess(false), 4000);
     } catch (err) {
       console.error('Error creating report:', err);
@@ -180,7 +174,6 @@ export const UiPetForm: React.FC<UiPetFormProps> = ({ ownerId, onSuccess }) => {
       )}
 
       <form onSubmit={handleSubmit} className="space-y-4">
-        {/* Foto */}
         <div>
           <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
             Foto de la mascota
@@ -197,14 +190,13 @@ export const UiPetForm: React.FC<UiPetFormProps> = ({ ownerId, onSuccess }) => {
           </div>
         </div>
 
-        {/* Nombre y Especie */}
         <div className="grid grid-cols-2 gap-3">
           <div>
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Nombre *</label>
             <input
               placeholder="Nombre de la mascota"
               value={formData.name}
-              onChange={(e) => setFormData({...formData, name: e.target.value})}
+              onChange={(e) => setFormData({ ...formData, name: e.target.value })}
               className="w-full p-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-red-500 focus:border-red-500"
               required
             />
@@ -213,7 +205,7 @@ export const UiPetForm: React.FC<UiPetFormProps> = ({ ownerId, onSuccess }) => {
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Especie *</label>
             <select
               value={formData.species}
-              onChange={(e) => setFormData({...formData, species: e.target.value})}
+              onChange={(e) => setFormData({ ...formData, species: e.target.value })}
               className="w-full p-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-red-500 focus:border-red-500"
             >
               <option>Perro</option>
@@ -223,14 +215,13 @@ export const UiPetForm: React.FC<UiPetFormProps> = ({ ownerId, onSuccess }) => {
           </div>
         </div>
 
-        {/* Raza y Color */}
         <div className="grid grid-cols-2 gap-3">
           <div>
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Raza</label>
             <input
               placeholder="Raza"
               value={formData.breed}
-              onChange={(e) => setFormData({...formData, breed: e.target.value})}
+              onChange={(e) => setFormData({ ...formData, breed: e.target.value })}
               className="w-full p-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-red-500 focus:border-red-500"
             />
           </div>
@@ -239,27 +230,23 @@ export const UiPetForm: React.FC<UiPetFormProps> = ({ ownerId, onSuccess }) => {
             <input
               placeholder="Color"
               value={formData.color}
-              onChange={(e) => setFormData({...formData, color: e.target.value})}
+              onChange={(e) => setFormData({ ...formData, color: e.target.value })}
               className="w-full p-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-red-500 focus:border-red-500"
             />
           </div>
         </div>
 
-        {/* Búsqueda de dirección */}
         <div>
           <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1 flex items-center gap-1">
             <MapPin className="h-4 w-4" /> Buscar ubicación *
           </label>
-          <AddressSearch 
+          <AddressSearch
             onLocationSelect={handleLocationSelect}
             placeholder="Ej: Av. Providencia 1200, Santiago"
           />
-          <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-            Busca por dirección, calle con número o sector
-          </p>
+          <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Busca por dirección, calle con número o sector</p>
         </div>
 
-        {/* Dirección seleccionada */}
         {formData.lastLocation.address && (
           <div className="bg-blue-50 dark:bg-blue-900/20 p-3 rounded-lg">
             <p className="text-sm font-medium text-blue-700 dark:text-blue-400 mb-1">Ubicación seleccionada:</p>
@@ -274,7 +261,6 @@ export const UiPetForm: React.FC<UiPetFormProps> = ({ ownerId, onSuccess }) => {
           </div>
         )}
 
-        {/* Coordenadas manuales (avanzado) */}
         <details className="text-sm">
           <summary className="cursor-pointer text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300">
             Ingresar coordenadas manualmente (avanzado)
@@ -287,10 +273,12 @@ export const UiPetForm: React.FC<UiPetFormProps> = ({ ownerId, onSuccess }) => {
                 step="any"
                 placeholder="Latitud"
                 value={formData.lastLocation.latitude}
-                onChange={(e) => setFormData({
-                  ...formData,
-                  lastLocation: {...formData.lastLocation, latitude: parseFloat(e.target.value)}
-                })}
+                onChange={(e) =>
+                  setFormData({
+                    ...formData,
+                    lastLocation: { ...formData.lastLocation, latitude: parseFloat(e.target.value) }
+                  })
+                }
                 className="w-full p-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm"
               />
             </div>
@@ -301,24 +289,25 @@ export const UiPetForm: React.FC<UiPetFormProps> = ({ ownerId, onSuccess }) => {
                 step="any"
                 placeholder="Longitud"
                 value={formData.lastLocation.longitude}
-                onChange={(e) => setFormData({
-                  ...formData,
-                  lastLocation: {...formData.lastLocation, longitude: parseFloat(e.target.value)}
-                })}
+                onChange={(e) =>
+                  setFormData({
+                    ...formData,
+                    lastLocation: { ...formData.lastLocation, longitude: parseFloat(e.target.value) }
+                  })
+                }
                 className="w-full p-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm"
               />
             </div>
           </div>
         </details>
 
-        {/* Descripción */}
         <div>
           <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Descripción *</label>
           <textarea
             placeholder="Describe a tu mascota: señas particulares, color de collar, comportamiento, etc."
             rows={3}
             value={formData.description}
-            onChange={(e) => setFormData({...formData, description: e.target.value})}
+            onChange={(e) => setFormData({ ...formData, description: e.target.value })}
             className="w-full p-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-red-500 focus:border-red-500 resize-none"
             required
           />
@@ -328,9 +317,7 @@ export const UiPetForm: React.FC<UiPetFormProps> = ({ ownerId, onSuccess }) => {
           type="submit"
           disabled={isSubmitting || !ownerId}
           className={`w-full py-3 rounded-lg font-semibold flex items-center justify-center gap-2 transition-colors ${
-            ownerId 
-              ? 'bg-red-600 text-white hover:bg-red-700' 
-              : 'bg-gray-400 text-gray-200 cursor-not-allowed'
+            ownerId ? 'bg-red-600 text-white hover:bg-red-700' : 'bg-gray-400 text-gray-200 cursor-not-allowed'
           }`}
         >
           {isSubmitting ? (
@@ -345,12 +332,8 @@ export const UiPetForm: React.FC<UiPetFormProps> = ({ ownerId, onSuccess }) => {
             </>
           )}
         </button>
-        
-        {!ownerId && (
-          <p className="text-sm text-red-500 text-center">
-            Debes iniciar sesión para reportar una mascota
-          </p>
-        )}
+
+        {!ownerId && <p className="text-sm text-red-500 text-center">Debes iniciar sesión para reportar una mascota</p>}
       </form>
     </div>
   );

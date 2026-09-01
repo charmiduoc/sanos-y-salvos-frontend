@@ -1,4 +1,3 @@
-// src/components/UiReportCard.tsx
 import React, { useState, useEffect } from 'react';
 import { MapPin, Calendar, MessageSquare, Image as ImageIcon, Eye, Trash2, Loader2 } from 'lucide-react';
 import type { Mascota } from '../types';
@@ -14,12 +13,12 @@ interface Props {
   currentUserId?: string;
 }
 
-export const UiReportCard: React.FC<Props> = ({ 
-  report, 
-  onViewLocation, 
-  onViewDetails, 
+export const UiReportCard: React.FC<Props> = ({
+  report,
+  onViewLocation,
+  onViewDetails,
   onDelete,
-  currentUserId 
+  currentUserId
 }) => {
   const [imageUrl, setImageUrl] = useState<string | null>(null);
   const [isLoadingImage, setIsLoadingImage] = useState(false);
@@ -48,7 +47,7 @@ export const UiReportCard: React.FC<Props> = ({
 
   const handleDelete = async () => {
     if (!report.id) return;
-    
+
     try {
       setIsDeleting(true);
       await petService.delete(report.id);
@@ -77,8 +76,7 @@ export const UiReportCard: React.FC<Props> = ({
 
   return (
     <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl overflow-hidden shadow-md hover:shadow-lg transition-all duration-200 hover:-translate-y-1 h-full flex flex-col">
-      {/* Header con estado - altura fija */}
-      <div 
+      <div
         className="px-3 py-1.5 text-center text-white font-bold text-sm flex justify-between items-center flex-shrink-0"
         style={{ backgroundColor: statusColors[report.status] || '#64748b' }}
       >
@@ -97,9 +95,7 @@ export const UiReportCard: React.FC<Props> = ({
         )}
       </div>
 
-      {/* Contenido - flex-1 para que ocupe todo el espacio disponible */}
       <div className="p-4 flex gap-3 flex-1">
-        {/* Imagen - tamaño fijo */}
         <div className="w-20 h-20 bg-gray-100 dark:bg-gray-700 rounded-lg overflow-hidden flex-shrink-0">
           {isLoadingImage ? (
             <div className="flex items-center justify-center h-full">
@@ -114,7 +110,6 @@ export const UiReportCard: React.FC<Props> = ({
           )}
         </div>
 
-        {/* Información - flex-1 para que ocupe el espacio restante */}
         <div className="flex-1 min-w-0 flex flex-col">
           <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-0.5 truncate">
             {report.name}
@@ -122,13 +117,11 @@ export const UiReportCard: React.FC<Props> = ({
           <p className="text-xs text-gray-500 dark:text-gray-400 mb-2">
             {report.species} {report.breed && `• ${report.breed}`} {report.color && `• ${report.color}`}
           </p>
-          
-          {/* Descripción con altura fija y scroll si es necesario */}
+
           <div className="text-sm text-gray-600 dark:text-gray-300 mb-3 leading-relaxed line-clamp-2 min-h-[2.5rem]">
             {report.description || 'Sin descripción'}
           </div>
 
-          {/* Ubicación y fecha - espacio flexible */}
           <div className="space-y-1.5 text-xs text-gray-500 dark:text-gray-400 flex-1">
             {report.lastLocation && (
               <div className="flex items-center gap-1.5">
@@ -146,25 +139,28 @@ export const UiReportCard: React.FC<Props> = ({
             )}
           </div>
 
-          {/* Botones - siempre al final */}
           <div className="flex gap-2 mt-3 flex-shrink-0">
-            <button 
+            <button
               onClick={(e) => {
                 e.stopPropagation();
-                onViewLocation?.(report.id!);
-              }} 
+                if (report.id) {
+                  onViewLocation?.(report.id);
+                }
+              }}
               className="flex-1 flex items-center justify-center gap-1.5 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-medium rounded-lg transition-colors"
             >
               <MessageSquare size={14} />
               Ver avistamientos
             </button>
-            
+
             {onViewDetails && (
-              <button 
+              <button
                 onClick={(e) => {
                   e.stopPropagation();
-                  onViewDetails?.(report.id!);
-                }} 
+                  if (report.id) {
+                    onViewDetails?.(report.id);
+                  }
+                }}
                 className="flex items-center justify-center gap-1.5 px-3 py-1.5 bg-purple-600 hover:bg-purple-700 text-white text-xs font-medium rounded-lg transition-colors"
               >
                 <Eye size={14} />
@@ -175,16 +171,13 @@ export const UiReportCard: React.FC<Props> = ({
         </div>
       </div>
 
-      {/* Modal de confirmación para eliminar */}
       {showConfirm && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
           <div className="bg-white dark:bg-gray-800 rounded-xl max-w-md w-full p-6 shadow-2xl">
-            <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-3">
-              ¿Eliminar reporte?
-            </h3>
+            <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-3">¿Eliminar reporte?</h3>
             <p className="text-gray-600 dark:text-gray-400 mb-6">
-              ¿Estás seguro de que deseas eliminar el reporte de <strong>{report.name}</strong>? 
-              Esta acción no se puede deshacer.
+              ¿Estás seguro de que deseas eliminar el reporte de <strong>{report.name}</strong>? Esta
+              acción no se puede deshacer.
             </p>
             <div className="flex gap-3">
               <button

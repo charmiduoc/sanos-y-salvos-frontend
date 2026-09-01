@@ -51,8 +51,10 @@ export const UiNotificationBell: React.FC<UiNotificationBellProps> = ({ userId }
 
   const handleMarkAsRead = async (notificationId: string) => {
     try {
-      await notificationService.markAsRead(notificationId);
-      await loadNotifications();
+      if (notificationId) {
+        await notificationService.markAsRead(notificationId);
+        await loadNotifications();
+      }
     } catch (error) {
       console.error('Error marking as read:', error);
     }
@@ -135,45 +137,58 @@ export const UiNotificationBell: React.FC<UiNotificationBellProps> = ({ userId }
                 <p className="text-gray-500 dark:text-gray-400 text-sm">No hay notificaciones</p>
               </div>
             ) : (
-              notifications.map((notif) => (
-                <div
-                  key={notif.id}
-                  className={`p-3 border-b dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition cursor-pointer ${
-                    !notif.isRead ? 'bg-red-50 dark:bg-red-900/20' : ''
-                  }`}
-                  onClick={() => handleMarkAsRead(notif.id!)}
-                >
-                  <div className="flex gap-3">
-                    <div className="flex-shrink-0">
-                      <div className={`p-2 rounded-full ${
-                        !notif.isRead ? 'bg-red-100 dark:bg-red-900/30' : 'bg-gray-100 dark:bg-gray-700'
-                      }`}>
-                        {getNotificationIcon(notif.type)}
-                      </div>
-                    </div>
-                    
-                    <div className="flex-1 min-w-0">
-                      <div className="flex justify-between items-start gap-2">
-                        <p className={`text-sm ${!notif.isRead ? 'font-semibold text-gray-900 dark:text-white' : 'text-gray-700 dark:text-gray-300'}`}>
-                          {notif.title}
-                        </p>
-                        <span className="text-xs text-gray-400 flex-shrink-0">
-                          {getTimeAgo(notif.createdAt)}
-                        </span>
-                      </div>
-                      <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5 line-clamp-2">
-                        {notif.message}
-                      </p>
-                    </div>
-
-                    {!notif.isRead && (
+              notifications.map((notif) => {
+                const notificationId = notif.id || '';
+                return (
+                  <div
+                    key={notificationId}
+                    className={`p-3 border-b dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition cursor-pointer ${
+                      !notif.isRead ? 'bg-red-50 dark:bg-red-900/20' : ''
+                    }`}
+                    onClick={() => handleMarkAsRead(notificationId)}
+                  >
+                    <div className="flex gap-3">
                       <div className="flex-shrink-0">
-                        <div className="w-2 h-2 bg-red-500 rounded-full"></div>
+                        <div
+                          className={`p-2 rounded-full ${
+                            !notif.isRead
+                              ? 'bg-red-100 dark:bg-red-900/30'
+                              : 'bg-gray-100 dark:bg-gray-700'
+                          }`}
+                        >
+                          {getNotificationIcon(notif.type)}
+                        </div>
                       </div>
-                    )}
+
+                      <div className="flex-1 min-w-0">
+                        <div className="flex justify-between items-start gap-2">
+                          <p
+                            className={`text-sm ${
+                              !notif.isRead
+                                ? 'font-semibold text-gray-900 dark:text-white'
+                                : 'text-gray-700 dark:text-gray-300'
+                            }`}
+                          >
+                            {notif.title}
+                          </p>
+                          <span className="text-xs text-gray-400 flex-shrink-0">
+                            {getTimeAgo(notif.createdAt || '')}
+                          </span>
+                        </div>
+                        <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5 line-clamp-2">
+                          {notif.message}
+                        </p>
+                      </div>
+
+                      {!notif.isRead && (
+                        <div className="flex-shrink-0">
+                          <div className="w-2 h-2 bg-red-500 rounded-full"></div>
+                        </div>
+                      )}
+                    </div>
                   </div>
-                </div>
-              ))
+                );
+              })
             )}
           </div>
 

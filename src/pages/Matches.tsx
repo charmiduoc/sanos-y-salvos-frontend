@@ -5,8 +5,9 @@ import { GitCompare, AlertTriangle } from 'lucide-react';
 import matchService from '../service/match.service';
 import type { MatchResponse, Usuario } from '../types';
 
+// ✅ currentUser es opcional
 interface MatchesProps {
-  currentUser: Usuario | null;
+  currentUser?: Usuario | null;
 }
 
 export const Matches: React.FC<MatchesProps> = ({ currentUser }) => {
@@ -14,7 +15,10 @@ export const Matches: React.FC<MatchesProps> = ({ currentUser }) => {
   const [isLoading, setIsLoading] = useState(true);
 
   const loadMatches = async () => {
-    if (!currentUser?.id) return;
+    if (!currentUser?.id) {
+      setIsLoading(false);
+      return;
+    }
     setIsLoading(true);
     try {
       const ownerMatches = await matchService.getByOwnerId(currentUser.id);

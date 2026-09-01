@@ -5,7 +5,7 @@ import { Map, Flame, Layers, Loader2 } from 'lucide-react';
 import L from 'leaflet';
 import geoService from '../service/geo.service';
 import petService from '../service/pet.service';
-import type { Ubicacion } from '../types';
+import type { Ubicacion, LocationWithPet } from '../types';
 
 import 'leaflet/dist/leaflet.css';
 import iconMarker from 'leaflet/dist/images/marker-icon.png';
@@ -21,12 +21,6 @@ const DefaultIcon = L.icon({
   popupAnchor: [1, -34],
 });
 L.Marker.prototype.options.icon = DefaultIcon;
-
-interface LocationWithPet extends Ubicacion {
-  petName?: string;
-  petStatus?: string;
-  ownerId?: string;
-}
 
 interface UiMapProps {
   currentUserId?: string;
@@ -54,36 +48,32 @@ export const UiMap: React.FC<UiMapProps> = ({ currentUserId, filterByUser = fals
       
       if (filterByUser && currentUserId) {
         console.log('Cargando ubicaciones del usuario:', currentUserId);
-        
-        // Intentar método 1
         ubicacionesData = await geoService.getUbicacionesByUserId(currentUserId);
-        console.log(`Método 1: ${ubicacionesData.length} ubicaciones encontradas`);
-        
-        // Si no encuentra, intentar método 2 (alternativo)
-        if (ubicacionesData.length === 0) {
-          console.log('Intentando método alternativo...');
-          ubicacionesData = await geoService.getUbicacionesByUserIdAlt(currentUserId);
-          console.log(`Método 2: ${ubicacionesData.length} ubicaciones encontradas`);
-        }
+        console.log(`Encontradas ${ubicacionesData.length} ubicaciones`);
       } else {
         console.log('Cargando todas las ubicaciones');
         ubicacionesData = await geoService.getAll();
         console.log(`Encontradas ${ubicacionesData.length} ubicaciones totales`);
       }
       
-      // Enriquecer con datos de las mascotas
       const ubicacionesConPet = await Promise.all(
         ubicacionesData.map(async (ubicacion) => {
           try {
-            const pet = await petService.getById(ubicacion.reportId);
+            const pet = await petService.getById(ubicacion.reportId || '');
             return {
               ...ubicacion,
               petName: pet.name,
               petStatus: pet.status,
-              ownerId: pet.ownerId
-            };
+              ownerId: pet.ownerId,
+              posicion: ubicacion.posicion || { type: 'Point', coordinates: [0, 0] },
+              fechaRegistro: ubicacion.createdAt || new Date().toISOString()
+            } as LocationWithPet;
           } catch {
-            return ubicacion;
+            return {
+              ...ubicacion,
+              posicion: ubicacion.posicion || { type: 'Point', coordinates: [0, 0] },
+              fechaRegistro: ubicacion.createdAt || new Date().toISOString()
+            } as LocationWithPet;
           }
         })
       );
@@ -161,9 +151,9 @@ export const UiMap: React.FC<UiMapProps> = ({ currentUserId, filterByUser = fals
             />
 
             {modoVista === 'puntos' && ubicaciones.map((ubicacion) => {
-              const coordinates = ubicacion.posicion.coordinates;
+              const coords = ubicacion.posicion?.coordinates || [0, 0];
               return (
-                <Marker key={ubicacion.id} position={[coordinates[1], coordinates[0]]}>
+                <Marker key={ubicacion.id} position={[coords[1], coords[0]]}>
                   <Popup>
                     <div className="text-sm">
                       <strong className="text-gray-900 dark:text-white">
@@ -179,7 +169,7 @@ export const UiMap: React.FC<UiMapProps> = ({ currentUserId, filterByUser = fals
                       </small>
                       <br />
                       <small className="text-gray-500 dark:text-gray-400">
-                        {new Date(ubicacion.fechaRegistro).toLocaleString()}
+                        {ubicacion.fechaRegistro ? new Date(ubicacion.fechaRegistro).toLocaleString() : ''}
                       </small>
                     </div>
                   </Popup>
