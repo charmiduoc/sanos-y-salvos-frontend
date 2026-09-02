@@ -1,15 +1,16 @@
 import React, { useState } from 'react';
 import { X, User, Mail, Lock, Phone, Shield } from 'lucide-react';
 import toast from 'react-hot-toast';
+import type { RegisterRequest } from '../../types';
 
 interface AdminRegisterModalProps {
   onClose: () => void;
-  onRegister: (userData: any) => Promise<void>;
+  onRegister: (userData: RegisterRequest) => Promise<void>;
 }
 
 export const AdminRegisterModal: React.FC<AdminRegisterModalProps> = ({ onClose, onRegister }) => {
   const [isLoading, setIsLoading] = useState(false);
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState<RegisterRequest>({
     name: '',
     email: '',
     password: '',
@@ -20,15 +21,15 @@ export const AdminRegisterModal: React.FC<AdminRegisterModalProps> = ({ onClose,
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!formData.name.trim()) {
+    if (!formData.name?.trim()) {
       toast.error('El nombre es requerido');
       return;
     }
-    if (!formData.email.trim()) {
+    if (!formData.email?.trim()) {
       toast.error('El email es requerido');
       return;
     }
-    if (!formData.password.trim()) {
+    if (!formData.password?.trim()) {
       toast.error('La contraseña es requerida');
       return;
     }
@@ -115,7 +116,7 @@ export const AdminRegisterModal: React.FC<AdminRegisterModalProps> = ({ onClose,
             <Shield className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
             <select
               value={formData.role}
-              onChange={(e) => setFormData({...formData, role: e.target.value})}
+              onChange={(e) => setFormData({...formData, role: e.target.value as 'CITIZEN' | 'ADMIN'})}
               className="w-full pl-10 p-3 border rounded-lg dark:bg-gray-700 dark:border-gray-600"
             >
               <option value="CITIZEN">Ciudadano (ROLE_USER)</option>

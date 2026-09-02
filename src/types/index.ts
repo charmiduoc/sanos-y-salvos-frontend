@@ -1,3 +1,5 @@
+// types/index.ts
+
 export interface Usuario {
   id: string;
   email: string;
@@ -40,27 +42,27 @@ export interface ApiResponse<T> {
 
 export interface Ubicacion {
   id: string;
-  latitud: number;
-  longitud: number;
-  direccion?: string;
+  reportId: string;
   descripcion?: string;
-  reportId?: string;
-  createdAt?: string;
-  updatedAt?: string;
-  // ✅ AGREGADO
-  posicion?: {
+  fechaRegistro: string;
+  posicion: {
     type: 'Point';
     coordinates: [number, number];
   };
+  latitud?: number;
+  longitud?: number;
+  direccion?: string;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 export interface LocationWithPet extends Ubicacion {
   petName?: string;
   petStatus?: string;
   ownerId?: string;
-  fechaRegistro?: string;
 }
 
+// ✅ TIPO PRINCIPAL DE MASCOTA (CON id OBLIGATORIO)
 export interface Mascota {
   id: string;
   name: string;
@@ -81,6 +83,12 @@ export interface Mascota {
   createdAt?: string;
   updatedAt?: string;
 }
+
+// ✅ NUEVO: Tipo para CREAR una mascota (SIN id)
+export type CrearMascota = Omit<Mascota, 'id'>;
+
+// ✅ NUEVO: Tipo para ACTUALIZAR (todos opcionales excepto id)
+export type ActualizarMascota = Partial<Omit<Mascota, 'id'>> & { id: string };
 
 export interface PetFormData {
   name: string;

@@ -1,16 +1,28 @@
+// src/pages/Report.tsx
 import React from 'react';
 import { motion } from 'framer-motion';
-import { AlertCircle } from 'lucide-react';
+import { AlertCircle, ArrowLeft } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import { UiPetForm } from '../components/UiPetForm';
+import { useAuth } from '../context/AuthContext';
 
-interface ReportProps {
-  ownerId?: string;
-}
+export const Report: React.FC = () => {
+  const { user } = useAuth();
+  const ownerId = user?.id;
+  const navigate = useNavigate();
 
-export const Report: React.FC<ReportProps> = ({ ownerId }) => {
   return (
     <div className="pt-[72px] min-h-screen bg-gray-50 dark:bg-gray-900">
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
+        {/* ✅ Botón Volver */}
+        <button
+          onClick={() => navigate('/dashboard')}
+          className="inline-flex items-center gap-2 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors mb-6 group"
+        >
+          <ArrowLeft size={18} className="group-hover:-translate-x-1 transition-transform" />
+          Volver al Dashboard
+        </button>
+
         <motion.div
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}

@@ -1,28 +1,28 @@
+// src/pages/Matches.tsx
 import React, { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
+import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
-import { GitCompare, AlertTriangle } from 'lucide-react';
+import { GitCompare, AlertTriangle, ArrowLeft } from 'lucide-react';
 import matchService from '../service/match.service';
-import type { MatchResponse, Usuario } from '../types';
+import { useAuth } from '../context/AuthContext';
+import type { MatchResponse } from '../types';
 
-// ✅ currentUser es opcional
-interface MatchesProps {
-  currentUser?: Usuario | null;
-}
-
-export const Matches: React.FC<MatchesProps> = ({ currentUser }) => {
+export const Matches: React.FC = () => {
+  const { user } = useAuth();
+  const navigate = useNavigate();
   const [matches, setMatches] = useState<MatchResponse[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   const loadMatches = async () => {
-    if (!currentUser?.id) {
+    if (!user?.id) {
       setIsLoading(false);
       return;
     }
     setIsLoading(true);
     try {
-      const ownerMatches = await matchService.getByOwnerId(currentUser.id);
-      const founderMatches = await matchService.getByFounderId(currentUser.id);
+      const ownerMatches = await matchService.getByOwnerId(user.id);
+      const founderMatches = await matchService.getByFounderId(user.id);
       const combined = [...ownerMatches, ...founderMatches];
       setMatches(combined);
     } catch (error) {
@@ -35,9 +35,9 @@ export const Matches: React.FC<MatchesProps> = ({ currentUser }) => {
 
   useEffect(() => {
     loadMatches();
-  }, [currentUser]);
+  }, [user]);
 
-  if (!currentUser) {
+  if (!user) {
     return (
       <div className="pt-[72px] min-h-screen bg-gray-50 dark:bg-gray-900">
         <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-20 text-center text-gray-700 dark:text-gray-300">
@@ -51,6 +51,15 @@ export const Matches: React.FC<MatchesProps> = ({ currentUser }) => {
   return (
     <div className="pt-[72px] min-h-screen bg-gray-50 dark:bg-gray-900">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
+        {/* ✅ Botón Volver */}
+        <button
+          onClick={() => navigate('/dashboard')}
+          className="inline-flex items-center gap-2 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors mb-6 group"
+        >
+          <ArrowLeft size={18} className="group-hover:-translate-x-1 transition-transform" />
+          Volver al Dashboard
+        </button>
+
         <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} className="mb-8">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div>
@@ -93,7 +102,7 @@ export const Matches: React.FC<MatchesProps> = ({ currentUser }) => {
                   </div>
                   <div className="flex flex-wrap gap-2 items-center">
                     <span className="rounded-full bg-gray-100 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-gray-600 dark:bg-gray-700 dark:text-gray-300">
-                      {match.ownerId === currentUser.id ? 'Propietario' : 'Buscador'}
+                      {match.ownerId === user.id ? 'Propietario' : 'Buscador'}
                     </span>
                     {match.status === 'PENDING' ? (
                       <span className="rounded-full bg-yellow-100 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-yellow-700 dark:bg-yellow-900/20 dark:text-yellow-300">

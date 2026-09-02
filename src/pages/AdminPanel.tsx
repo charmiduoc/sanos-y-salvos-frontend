@@ -1,17 +1,17 @@
+// src/pages/AdminPanel.tsx
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Users, UserPlus, Shield, Trash2, Edit, Search, Loader2 } from 'lucide-react';
+import { Users, UserPlus, Shield, Trash2, Edit, Search, Loader2, ArrowLeft } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import userService from '../service/user.service';
 import { AdminRegisterModal } from '../components/Auth/AdminRegisterModal';
+import { useAuth } from '../context/AuthContext';
 import type { Usuario, RegisterRequest } from '../types';
 
-// ✅ currentUser es opcional
-interface AdminPanelProps {
-  currentUser?: Usuario | null;
-}
-
-export const AdminPanel: React.FC<AdminPanelProps> = ({ currentUser }) => {
+export const AdminPanel: React.FC = () => {
+  const { user } = useAuth();  // ✅ OBTENER USUARIO DEL CONTEXTO
+  const navigate = useNavigate();
   const [users, setUsers] = useState<Usuario[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
@@ -19,8 +19,10 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ currentUser }) => {
   const [isDeleting, setIsDeleting] = useState<string | null>(null);
 
   useEffect(() => {
-    loadUsers();
-  }, []);
+    if (user?.role === 'ROLE_ADMIN') {
+      loadUsers();
+    }
+  }, [user]);
 
   const loadUsers = async () => {
     try {
@@ -67,8 +69,8 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ currentUser }) => {
     user.email?.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  // ✅ Si no hay usuario autenticado, mostrar mensaje
-  if (!currentUser) {
+  // ✅ Si no hay usuario autenticado
+  if (!user) {
     return (
       <div className="pt-[72px] min-h-screen bg-gray-50 dark:bg-gray-900">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20 text-center">
@@ -79,13 +81,19 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ currentUser }) => {
           <p className="text-gray-600 dark:text-gray-400">
             Debes iniciar sesión para acceder al panel de administración.
           </p>
+          <button
+            onClick={() => navigate('/login')}
+            className="mt-6 px-6 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
+          >
+            Ir a Iniciar Sesión
+          </button>
         </div>
       </div>
     );
   }
 
-  // ✅ Si no es administrador, mostrar mensaje
-  if (currentUser.role !== 'ROLE_ADMIN') {
+  // ✅ Si no es administrador
+  if (user.role !== 'ROLE_ADMIN') {
     return (
       <div className="pt-[72px] min-h-screen bg-gray-50 dark:bg-gray-900">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20 text-center">
@@ -96,6 +104,12 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ currentUser }) => {
           <p className="text-gray-600 dark:text-gray-400">
             No tienes permisos para acceder al panel de administración.
           </p>
+          <button
+            onClick={() => navigate('/dashboard')}
+            className="mt-6 px-6 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors"
+          >
+            Volver al Dashboard
+          </button>
         </div>
       </div>
     );
@@ -104,6 +118,15 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ currentUser }) => {
   return (
     <div className="pt-[72px] min-h-screen bg-gray-50 dark:bg-gray-900">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* ✅ Botón Volver */}
+        <button
+          onClick={() => navigate('/dashboard')}
+          className="inline-flex items-center gap-2 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors mb-6 group"
+        >
+          <ArrowLeft size={18} className="group-hover:-translate-x-1 transition-transform" />
+          Volver al Dashboard
+        </button>
+
         <motion.div
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -258,7 +281,6 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ currentUser }) => {
                         <div className="flex items-center justify-end gap-2">
                           <button
                             onClick={() => {
-                              // TODO: Implementar edición
                               toast('Función de edición en desarrollo');
                             }}
                             className="p-1.5 text-blue-600 hover:bg-blue-100 dark:hover:bg-blue-900/30 rounded-lg transition-colors"

@@ -1,3 +1,4 @@
+// src/service/auth.service.ts
 import type { Usuario } from '../types';
 import API_CONFIG from './api.config';
 
@@ -16,12 +17,15 @@ export const getStoredUser = (): Usuario | null => {
     
     // Verificar expiración
     if (user.expiration && new Date(user.expiration) < new Date()) {
+      console.log('⏰ Token expirado, limpiando...');
       clearStoredUser();
       return null;
     }
     
+    console.log('✅ Usuario recuperado de localStorage:', user.email);
     return user;
-  } catch {
+  } catch (error) {
+    console.error('❌ Error al parsear usuario:', error);
     clearStoredUser();
     return null;
   }
@@ -31,10 +35,17 @@ export const getStoredUser = (): Usuario | null => {
  * Almacena el usuario en localStorage.
  */
 export const setStoredUser = (user: Usuario): void => {
+  // Asegurar que el token esté presente
+  if (!user.token && user.accessToken) {
+    user.token = user.accessToken;
+  }
+  
   if (!user.expiration) {
     user.expiration = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
   }
+  
   localStorage.setItem(STORAGE_KEY, JSON.stringify(user));
+  console.log('✅ Usuario guardado en localStorage:', user.email);
 };
 
 /**
@@ -44,6 +55,7 @@ export const clearStoredUser = (): void => {
   localStorage.removeItem(STORAGE_KEY);
   localStorage.removeItem(TOKEN_REFRESH_KEY);
   sessionStorage.removeItem(STORAGE_KEY);
+  console.log('🗑️ Datos de usuario eliminados');
 };
 
 /**
@@ -52,7 +64,9 @@ export const clearStoredUser = (): void => {
 export const getToken = (): string | null => {
   const user = getStoredUser();
   if (!user) return null;
-  return user.token ?? user.accessToken ?? null;
+  const token = user.token ?? user.accessToken ?? null;
+  console.log('🔑 Token obtenido:', token ? `✅ ${token.substring(0, 20)}...` : '❌ No existe');
+  return token;
 };
 
 /**
@@ -67,21 +81,28 @@ export const getRefreshToken = (): string | null => {
  */
 export const refreshToken = async (): Promise<Usuario | null> => {
   const refresh = getRefreshToken();
-  if (!refresh) return null;
+  if (!refresh) {
+    console.log('❌ No hay refresh token disponible');
+    return null;
+  }
 
   try {
-    const response = await fetch(`${API_CONFIG.user}/auth/refresh`, {
+    console.log('🔄 Refrescando token...');
+    const response = await fetch(`${API_CONFIG.user}/api/auth/refresh`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ refreshToken: refresh })
     });
 
     if (!response.ok) {
+      console.error('❌ Error al refrescar token:', response.status);
       clearStoredUser();
       return null;
     }
 
     const data = await response.json();
+    console.log('✅ Token refrescado exitosamente');
+    
     const user = getStoredUser();
     
     if (user) {
@@ -102,7 +123,7 @@ export const refreshToken = async (): Promise<Usuario | null> => {
     
     return null;
   } catch (error) {
-    console.error('Error refrescando token:', error);
+    console.error('❌ Error refrescando token:', error);
     clearStoredUser();
     return null;
   }
@@ -110,43 +131,72 @@ export const refreshToken = async (): Promise<Usuario | null> => {
 
 /**
  * Crea los headers con el token JWT.
+ * ✅ CORREGIDO: No fuerza Content-Type para FormData
  */
-const mergeHeaders = (headers?: HeadersInit): Headers => {
+const mergeHeaders = (headers?: HeadersInit, isFormData: boolean = false): Headers => {
   const finalHeaders = new Headers(headers);
   const token = getToken();
   
+  // Agregar Authorization si hay token
   if (token && !finalHeaders.has('Authorization')) {
     finalHeaders.set('Authorization', `Bearer ${token}`);
+    console.log('🔑 Token agregado al header');
+  } else if (!token) {
+    console.log('⚠️ No hay token disponible');
   }
   
-  if (!finalHeaders.has('Content-Type')) {
+  // ✅ CORREGIDO: Solo agregar Content-Type si NO es FormData
+  if (!isFormData && !finalHeaders.has('Content-Type')) {
     finalHeaders.set('Content-Type', 'application/json');
+    console.log('📝 Content-Type: application/json');
+  } else if (isFormData) {
+    // ⚠️ IMPORTANTE: NO establecer Content-Type para FormData
+    // El navegador lo establecerá automáticamente con el boundary
+    console.log('📦 FormData detectado, NO se establece Content-Type');
+    // Eliminar Content-Type si existe
+    finalHeaders.delete('Content-Type');
   }
+  
+  const headersObj = Object.fromEntries(finalHeaders.entries());
+  console.log('📋 Headers finales:', {
+    ...headersObj,
+    Authorization: headersObj.Authorization ? 'Bearer ***' : 'No'
+  });
   
   return finalHeaders;
 };
 
 /**
  * Fetch con autenticación automática y manejo de token expirado.
+ * ✅ CORREGIDO: Detecta FormData automáticamente
  */
 export const authFetch = async (input: RequestInfo, init: RequestInit = {}): Promise<Response> => {
   try {
+    // ✅ Detectar si el body es FormData
+    const isFormData = init.body instanceof FormData;
+    
+    console.log('🌐 authFetch - URL:', input);
+    console.log('📦 isFormData:', isFormData);
+    console.log('📦 Método:', init.method || 'GET');
+    
     let response = await fetch(input, {
       ...init,
-      headers: mergeHeaders(init.headers)
+      headers: mergeHeaders(init.headers, isFormData)
     });
 
     // Si el token expiró, intentar refrescar
     if (response.status === 401) {
+      console.log('⚠️ Token expirado (401), intentando refrescar...');
       const newUser = await refreshToken();
       
       if (newUser) {
-        // Reintentar la petición con el nuevo token
+        console.log('✅ Token refrescado, reintentando petición...');
         response = await fetch(input, {
           ...init,
-          headers: mergeHeaders(init.headers)
+          headers: mergeHeaders(init.headers, isFormData)
         });
       } else {
+        console.log('❌ No se pudo refrescar el token, redirigiendo a login');
         clearStoredUser();
         if (typeof window !== 'undefined') {
           window.location.href = '/login';
@@ -156,7 +206,7 @@ export const authFetch = async (input: RequestInfo, init: RequestInit = {}): Pro
 
     return response;
   } catch (error) {
-    console.error('Error en authFetch:', error);
+    console.error('❌ Error en authFetch:', error);
     throw error;
   }
 };

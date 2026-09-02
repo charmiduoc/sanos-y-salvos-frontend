@@ -1,10 +1,12 @@
+// src/components/UiPetForm.tsx
 import React, { useState } from 'react';
 import { AlertCircle, CheckCircle, Upload, MapPin, Loader2 } from 'lucide-react';
+import toast from 'react-hot-toast';
 import { AddressSearch } from './AddressSearch';
 import petService from '../service/pet.service';
 import imageService from '../service/image.service';
 import geoService from '../service/geo.service';
-import type { Mascota, Ubicacion } from '../types';
+import type { Mascota, CrearMascota } from '../types';
 
 interface UiPetFormProps {
   ownerId?: string;
@@ -55,6 +57,18 @@ export const UiPetForm: React.FC<UiPetFormProps> = ({ ownerId, onSuccess }) => {
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
+      // Validar tamaño (máximo 5MB)
+      if (file.size > 5 * 1024 * 1024) {
+        toast.error('La imagen no puede superar los 5MB');
+        return;
+      }
+      
+      // Validar tipo
+      if (!file.type.startsWith('image/')) {
+        toast.error('Solo se permiten archivos de imagen');
+        return;
+      }
+
       setSelectedImage(file);
       const reader = new FileReader();
       reader.onloadend = () => {
@@ -67,8 +81,22 @@ export const UiPetForm: React.FC<UiPetFormProps> = ({ ownerId, onSuccess }) => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
+    // Validaciones
     if (!ownerId) {
       setError('Debes iniciar sesión para reportar una mascota');
+      toast.error('Debes iniciar sesión para reportar una mascota');
+      return;
+    }
+
+    if (!formData.name.trim()) {
+      setError('El nombre de la mascota es obligatorio');
+      toast.error('El nombre de la mascota es obligatorio');
+      return;
+    }
+
+    if (!formData.lastLocation.address && (!formData.lastLocation.latitude || !formData.lastLocation.longitude)) {
+      setError('Debes seleccionar una ubicación');
+      toast.error('Debes seleccionar una ubicación');
       return;
     }
 
@@ -78,14 +106,44 @@ export const UiPetForm: React.FC<UiPetFormProps> = ({ ownerId, onSuccess }) => {
     try {
       let imageId = null;
 
+      // ✅ SUBIR IMAGEN
       if (selectedImage) {
-        const tempId = `img_${Date.now()}`;
-        const imageResponse = await imageService.upload(tempId, selectedImage);
-        imageId = imageResponse?.imageId || null;
+        try {
+          const imageId_temp = `img_${Date.now()}`;
+          console.log('📤 Subiendo imagen con ID:', imageId_temp);
+          console.log('📄 Archivo:', selectedImage.name, 'Tamaño:', selectedImage.size, 'Tipo:', selectedImage.type);
+          
+          const imageResponse = await imageService.upload(imageId_temp, selectedImage);
+          console.log('📥 Respuesta del servidor:', JSON.stringify(imageResponse, null, 2));
+          
+          // Extraer imageId de la respuesta
+          imageId = imageResponse?.imageId || imageResponse?.id || imageId_temp;
+          console.log('✅ ImageId final:', imageId);
+          
+          toast.success('Imagen subida correctamente');
+        } catch (imgError: any) {
+          console.error('❌ Error al subir imagen:', imgError);
+          console.error('❌ Stack trace:', imgError.stack);
+          
+          // Mostrar error más detallado
+          let errorMsg = 'No se pudo subir la imagen';
+          if (imgError.message) {
+            errorMsg += `: ${imgError.message}`;
+          }
+          if (imgError.status) {
+            errorMsg += ` (Status: ${imgError.status})`;
+          }
+          
+          toast.error(errorMsg);
+          // Continuamos sin imagen
+        }
+      } else {
+        console.log('ℹ️ No se seleccionó imagen');
       }
 
-      const newPet: any = {
-        name: formData.name || 'Sin nombre',
+      // ✅ CREAR DATOS DE LA MASCOTA
+      const newPetData: CrearMascota = {
+        name: formData.name.trim(),
         species: formData.species || 'Perro',
         breed: formData.breed || '',
         color: formData.color || '',
@@ -98,30 +156,41 @@ export const UiPetForm: React.FC<UiPetFormProps> = ({ ownerId, onSuccess }) => {
         lastLocation: {
           latitude: formData.lastLocation.latitude || -33.4489,
           longitude: formData.lastLocation.longitude || -70.6693,
-          address: formData.lastLocation.address || ''
+          address: formData.lastLocation.address || '',
         }
       };
 
-      console.log('Creando mascota con ownerId:', ownerId);
-      console.log('Datos completos:', newPet);
+      console.log('📝 Creando mascota con datos:', JSON.stringify(newPetData, null, 2));
 
-      const createdPet = await petService.create(newPet);
-      console.log('Mascota creada:', createdPet);
+      // ✅ CREAR MASCOTA
+      const createdPet = await petService.create(newPetData);
+      console.log('✅ Mascota creada:', createdPet);
 
-      if (createdPet?.id && formData.lastLocation.latitude && formData.lastLocation.longitude) {
-        const ubicacion: any = {
+      // ✅ CREAR UBICACIÓN
+      if (createdPet?.id) {
+        const ubicacionData = {
           reportId: createdPet.id,
           descripcion: `Mascota ${formData.name} reportada en ${formData.lastLocation.address || 'ubicación desconocida'}`,
           fechaRegistro: new Date().toISOString(),
           posicion: {
-            type: 'Point',
-            coordinates: [formData.lastLocation.longitude, formData.lastLocation.latitude]
+            type: 'Point' as const,
+            coordinates: [formData.lastLocation.longitude || -70.6693, formData.lastLocation.latitude || -33.4489]
           }
         };
-        await geoService.create(ubicacion);
+        
+        console.log('📝 Creando ubicación:', ubicacionData);
+        try {
+          await geoService.create(ubicacionData);
+          console.log('✅ Ubicación creada exitosamente');
+        } catch (geoError) {
+          console.warn('⚠️ No se pudo crear la ubicación:', geoError);
+        }
       }
 
       setSuccess(true);
+      toast.success('¡Reporte creado exitosamente!');
+      
+      // Resetear formulario
       setFormData({
         name: '',
         species: 'Perro',
@@ -144,10 +213,13 @@ export const UiPetForm: React.FC<UiPetFormProps> = ({ ownerId, onSuccess }) => {
 
       if (onSuccess) onSuccess(createdPet);
 
-      setTimeout(() => setSuccess(false), 4000);
-    } catch (err) {
-      console.error('Error creating report:', err);
-      setError('Error al crear el reporte. Por favor, intenta nuevamente.');
+      setTimeout(() => setSuccess(false), 5000);
+    } catch (err: any) {
+      console.error('❌ Error creating report:', err);
+      console.error('❌ Stack trace:', err.stack);
+      const errorMessage = err.message || 'Error al crear el reporte. Por favor, intenta nuevamente.';
+      setError(errorMessage);
+      toast.error(errorMessage);
     } finally {
       setIsSubmitting(false);
     }
@@ -182,12 +254,20 @@ export const UiPetForm: React.FC<UiPetFormProps> = ({ ownerId, onSuccess }) => {
             <label className="cursor-pointer bg-gray-100 dark:bg-gray-700 px-4 py-2 rounded-lg flex items-center gap-2 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600 transition">
               <Upload className="h-4 w-4" />
               Subir foto
-              <input type="file" accept="image/*" onChange={handleImageChange} hidden />
+              <input 
+                type="file" 
+                accept="image/*" 
+                onChange={handleImageChange} 
+                hidden 
+              />
             </label>
             {imagePreview && (
               <img src={imagePreview} alt="Preview" className="w-12 h-12 object-cover rounded-lg" />
             )}
           </div>
+          <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">
+            Formatos: JPG, PNG, GIF. Tamaño máximo: 5MB
+          </p>
         </div>
 
         <div className="grid grid-cols-2 gap-3">
@@ -251,13 +331,6 @@ export const UiPetForm: React.FC<UiPetFormProps> = ({ ownerId, onSuccess }) => {
           <div className="bg-blue-50 dark:bg-blue-900/20 p-3 rounded-lg">
             <p className="text-sm font-medium text-blue-700 dark:text-blue-400 mb-1">Ubicación seleccionada:</p>
             <p className="text-sm text-gray-700 dark:text-gray-300">{formData.lastLocation.address}</p>
-            {(formData.lastLocation.street || formData.lastLocation.city) && (
-              <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                {formData.lastLocation.street && `Calle: ${formData.lastLocation.street}`}
-                {formData.lastLocation.houseNumber && ` ${formData.lastLocation.houseNumber}`}
-                {formData.lastLocation.city && ` • ${formData.lastLocation.city}`}
-              </p>
-            )}
           </div>
         )}
 
@@ -333,7 +406,9 @@ export const UiPetForm: React.FC<UiPetFormProps> = ({ ownerId, onSuccess }) => {
           )}
         </button>
 
-        {!ownerId && <p className="text-sm text-red-500 text-center">Debes iniciar sesión para reportar una mascota</p>}
+        {!ownerId && (
+          <p className="text-sm text-red-500 text-center">Debes iniciar sesión para reportar una mascota</p>
+        )}
       </form>
     </div>
   );

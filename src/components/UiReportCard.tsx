@@ -1,3 +1,4 @@
+// src/components/UiReportCard.tsx
 import React, { useState, useEffect } from 'react';
 import { MapPin, Calendar, MessageSquare, Image as ImageIcon, Eye, Trash2, Loader2 } from 'lucide-react';
 import type { Mascota } from '../types';
@@ -22,6 +23,7 @@ export const UiReportCard: React.FC<Props> = ({
 }) => {
   const [imageUrl, setImageUrl] = useState<string | null>(null);
   const [isLoadingImage, setIsLoadingImage] = useState(false);
+  const [imageError, setImageError] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
 
@@ -32,16 +34,32 @@ export const UiReportCard: React.FC<Props> = ({
   }, [report.imageId]);
 
   const loadImage = async () => {
-    if (report.imageId) {
-      setIsLoadingImage(true);
-      try {
-        const url = imageService.getImageUrl(report.imageId);
+    if (!report.imageId) {
+      console.log('ℹ️ La mascota no tiene imagen asociada');
+      return;
+    }
+
+    console.log('🔍 Cargando imagen con imageId:', report.imageId);
+    setIsLoadingImage(true);
+    setImageError(false);
+    
+    try {
+      const url = imageService.getImageUrl(report.imageId);
+      console.log('🔍 URL generada:', url);
+      
+      // Verificar si la imagen existe
+      const exists = await imageService.exists(report.imageId);
+      if (exists) {
         setImageUrl(url);
-      } catch (error) {
-        console.error('Error loading image:', error);
-      } finally {
-        setIsLoadingImage(false);
+      } else {
+        console.warn('⚠️ La imagen no existe en el servidor');
+        setImageError(true);
       }
+    } catch (error) {
+      console.error('❌ Error loading image:', error);
+      setImageError(true);
+    } finally {
+      setIsLoadingImage(false);
     }
   };
 
@@ -50,11 +68,25 @@ export const UiReportCard: React.FC<Props> = ({
 
     try {
       setIsDeleting(true);
-      await petService.delete(report.id);
+      const success = await petService.delete(report.id);
+      
+      if (!success) {
+        throw new Error('No se pudo eliminar el reporte');
+      }
+      
+      // Si tiene imagen, eliminarla también
+      if (report.imageId) {
+        try {
+          await imageService.delete(report.imageId);
+        } catch (imgError) {
+          console.warn('⚠️ No se pudo eliminar la imagen:', imgError);
+        }
+      }
+      
       toast.success('Reporte eliminado exitosamente');
       if (onDelete) onDelete(report.id);
     } catch (error) {
-      console.error('Error deleting report:', error);
+      console.error('❌ Error deleting report:', error);
       toast.error('Error al eliminar el reporte');
     } finally {
       setIsDeleting(false);
@@ -99,10 +131,19 @@ export const UiReportCard: React.FC<Props> = ({
         <div className="w-20 h-20 bg-gray-100 dark:bg-gray-700 rounded-lg overflow-hidden flex-shrink-0">
           {isLoadingImage ? (
             <div className="flex items-center justify-center h-full">
-              <ImageIcon size={24} className="text-gray-400 dark:text-gray-500" />
+              <Loader2 size={24} className="text-gray-400 dark:text-gray-500 animate-spin" />
             </div>
-          ) : imageUrl ? (
-            <img src={imageUrl} alt={report.name} className="w-full h-full object-cover" />
+          ) : imageUrl && !imageError ? (
+            <img 
+              src={imageUrl} 
+              alt={report.name} 
+              className="w-full h-full object-cover"
+              onError={() => {
+                console.error('❌ Error al cargar la imagen:', imageUrl);
+                setImageError(true);
+                setImageUrl(null);
+              }}
+            />
           ) : (
             <div className="flex items-center justify-center h-full">
               <ImageIcon size={24} className="text-gray-400 dark:text-gray-500" />

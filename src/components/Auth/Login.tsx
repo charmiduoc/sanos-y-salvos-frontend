@@ -16,6 +16,7 @@ export const Login: React.FC = () => {
   const location = useLocation();
   const { login, isAuthenticated } = useAuth();
 
+  // Si ya está autenticado, redirigir
   React.useEffect(() => {
     if (isAuthenticated) {
       const from = location.state?.from?.pathname || '/dashboard';
@@ -36,8 +37,15 @@ export const Login: React.FC = () => {
 
     try {
       const user = await userService.login({ email, password, rememberMe });
+      
+      console.log('✅ Login exitoso - Usuario:', user);
+      console.log('✅ Token:', user.token);
+      
+      // ✅ Guardar usuario en el contexto (esto llama a setStoredUser)
       login(user);
+      
       toast.success(`Bienvenido, ${user.name}!`);
+      
       const from = location.state?.from?.pathname || '/dashboard';
       navigate(from, { replace: true });
     } catch (error: any) {
@@ -83,7 +91,7 @@ export const Login: React.FC = () => {
                   type="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  className="appearance-none rounded-none relative block w-full px-3 py-3 pl-10 border border-gray-300 dark:border-gray-600 placeholder-gray-500 dark:placeholder-gray-400 text-gray-900 dark:text-white rounded-t-md focus:outline-none focus:ring-primary-500 focus:border-primary-500 focus:z-10 sm:text-sm bg-white dark:bg-gray-700"
+                  className="appearance-none rounded-none relative block w-full px-3 py-3 pl-10 border border-gray-300 dark:border-gray-600 placeholder-gray-500 dark:placeholder-gray-400 text-gray-900 dark:text-white rounded-t-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 focus:z-10 sm:text-sm bg-white dark:bg-gray-700"
                   placeholder="Email"
                   disabled={isLoading}
                   autoFocus
@@ -99,7 +107,7 @@ export const Login: React.FC = () => {
                   type="password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className="appearance-none rounded-none relative block w-full px-3 py-3 pl-10 border border-gray-300 dark:border-gray-600 placeholder-gray-500 dark:placeholder-gray-400 text-gray-900 dark:text-white rounded-b-md focus:outline-none focus:ring-primary-500 focus:border-primary-500 focus:z-10 sm:text-sm bg-white dark:bg-gray-700"
+                  className="appearance-none rounded-none relative block w-full px-3 py-3 pl-10 border border-gray-300 dark:border-gray-600 placeholder-gray-500 dark:placeholder-gray-400 text-gray-900 dark:text-white rounded-b-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 focus:z-10 sm:text-sm bg-white dark:bg-gray-700"
                   placeholder="Contraseña"
                   disabled={isLoading}
                 />
@@ -114,14 +122,14 @@ export const Login: React.FC = () => {
                 type="checkbox"
                 checked={rememberMe}
                 onChange={(e) => setRememberMe(e.target.checked)}
-                className="h-4 w-4 text-primary-600 focus:ring-primary-500 border-gray-300 dark:border-gray-600 rounded"
+                className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 dark:border-gray-600 rounded"
               />
               <label htmlFor="remember-me" className="ml-2 block text-sm text-gray-900 dark:text-gray-300">
                 Recordarme
               </label>
             </div>
             <div className="text-sm">
-              <a href="/register" className="font-medium text-primary-600 hover:text-primary-500 dark:text-primary-400">
+              <a href="/register" className="font-medium text-blue-600 hover:text-blue-500 dark:text-blue-400">
                 ¿No tienes cuenta? Regístrate
               </a>
             </div>
