@@ -14,16 +14,23 @@ import {
   Share2,
   MessageCircle,
   Eye,
-  Award
+  Award,
+  User,
+  Phone,
+  Mail
 } from 'lucide-react';
 import petService from '../service/pet.service';
 import imageService from '../service/image.service';
-import type { Mascota } from '../types';
+import userService from '../service/user.service';
+import { useAuth } from '../context/AuthContext';
+import type { Mascota, Usuario } from '../types';
 
 export const PetDetailsPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const { user: currentUser } = useAuth();
   const [pet, setPet] = useState<Mascota | null>(null);
+  const [owner, setOwner] = useState<Usuario | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [imageUrl, setImageUrl] = useState<string | null>(null);
   const [isImageLoading, setIsImageLoading] = useState(false);
@@ -39,6 +46,26 @@ export const PetDetailsPage: React.FC = () => {
       setIsLoading(true);
       const data = await petService.getById(petId);
       setPet(data);
+      
+      // Cargar información del dueño
+      if (data.ownerId) {
+        try {
+          // Primero verificar si es el usuario actual
+          if (currentUser && currentUser.id === data.ownerId) {
+            setOwner(currentUser);
+          } else {
+            // Si no, buscar en el servicio
+            const ownerData = await userService.getById(data.ownerId);
+            setOwner(ownerData);
+          }
+        } catch (error) {
+          console.error('Error loading owner:', error);
+          // Si falla, intentar usar el usuario actual si coincide
+          if (currentUser && currentUser.id === data.ownerId) {
+            setOwner(currentUser);
+          }
+        }
+      }
       
       if (data.imageId) {
         setIsImageLoading(true);
@@ -101,6 +128,14 @@ export const PetDetailsPage: React.FC = () => {
     }
   };
 
+  const handleContactOwner = () => {
+    if (owner?.phone) {
+      window.open(`https://wa.me/${owner.phone.replace(/[^0-9]/g, '')}`, '_blank');
+    } else {
+      toast.error('No hay número de teléfono disponible');
+    }
+  };
+
   if (isLoading) {
     return (
       <div className="pt-[72px] min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center">
@@ -143,7 +178,6 @@ export const PetDetailsPage: React.FC = () => {
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.3 }}
         >
-          {/* Botón volver */}
           <button
             onClick={() => navigate('/')}
             className="inline-flex items-center gap-2 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors mb-4 group"
@@ -152,9 +186,7 @@ export const PetDetailsPage: React.FC = () => {
             Volver al dashboard
           </button>
 
-          {/* Tarjeta principal */}
           <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg overflow-hidden">
-            {/* Header con estado - Rojo sólido */}
             <div className={`px-5 py-3 ${statusColors[pet.status] || 'bg-red-600'}`}>
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <div className="flex items-center gap-2">
@@ -179,7 +211,6 @@ export const PetDetailsPage: React.FC = () => {
 
             <div className="p-5">
               <div className="grid lg:grid-cols-2 gap-6">
-                {/* Columna izquierda - Imagen */}
                 <div>
                   <div className="relative">
                     {isImageLoading ? (
@@ -199,7 +230,6 @@ export const PetDetailsPage: React.FC = () => {
                       </div>
                     )}
                     
-                    {/* Badge de estado en la imagen */}
                     <div className="absolute top-3 right-3">
                       <span className={`px-3 py-1 rounded-full text-xs font-semibold ${statusColors[pet.status]} shadow-lg`}>
                         {statusLabels[pet.status] || pet.status}
@@ -207,7 +237,6 @@ export const PetDetailsPage: React.FC = () => {
                     </div>
                   </div>
 
-                  {/* Botones de acción en móvil */}
                   <div className="mt-3 grid grid-cols-2 gap-2 lg:hidden">
                     <button
                       onClick={handleViewOnMap}
@@ -226,9 +255,7 @@ export const PetDetailsPage: React.FC = () => {
                   </div>
                 </div>
 
-                {/* Columna derecha - Información */}
                 <div className="space-y-4">
-                  {/* Descripción */}
                   {pet.description && (
                     <div>
                       <h3 className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1">
@@ -240,7 +267,6 @@ export const PetDetailsPage: React.FC = () => {
                     </div>
                   )}
 
-                  {/* Características */}
                   <div>
                     <h3 className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">
                       Características
@@ -265,7 +291,6 @@ export const PetDetailsPage: React.FC = () => {
                     </div>
                   </div>
 
-                  {/* Ubicación */}
                   {pet.lastLocation && (
                     <div>
                       <h3 className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1">
@@ -291,7 +316,6 @@ export const PetDetailsPage: React.FC = () => {
                     </div>
                   )}
 
-                  {/* Fecha de reporte */}
                   {pet.reportedAt && (
                     <div>
                       <h3 className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1">
@@ -312,7 +336,40 @@ export const PetDetailsPage: React.FC = () => {
                 </div>
               </div>
 
-              {/* Acciones - Desktop */}
+              {/* Información del dueño */}
+              {owner && (
+                <div className="mt-5 pt-4 border-t border-gray-200 dark:border-gray-700">
+                  <h3 className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-3">
+                    Información del dueño
+                  </h3>
+                  <div className="bg-gray-50 dark:bg-gray-700/50 rounded-lg p-4">
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                      <div className="flex items-center gap-2">
+                        <User className="h-4 w-4 text-gray-500 dark:text-gray-400 flex-shrink-0" />
+                        <div>
+                          <p className="text-xs text-gray-500 dark:text-gray-400">Nombre</p>
+                          <p className="text-sm font-medium text-gray-900 dark:text-white">{owner.name}</p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Phone className="h-4 w-4 text-gray-500 dark:text-gray-400 flex-shrink-0" />
+                        <div>
+                          <p className="text-xs text-gray-500 dark:text-gray-400">Teléfono</p>
+                          <p className="text-sm font-medium text-gray-900 dark:text-white">{owner.phone || 'No disponible'}</p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Mail className="h-4 w-4 text-gray-500 dark:text-gray-400 flex-shrink-0" />
+                        <div>
+                          <p className="text-xs text-gray-500 dark:text-gray-400">Email</p>
+                          <p className="text-sm font-medium text-gray-900 dark:text-white">{owner.email}</p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
               <div className="mt-5 pt-4 border-t border-gray-200 dark:border-gray-700">
                 <div className="flex flex-wrap gap-3">
                   <button
@@ -330,21 +387,17 @@ export const PetDetailsPage: React.FC = () => {
                     Compartir reporte
                   </button>
                   <button
-                    onClick={() => {
-                      const message = `¡Ayuda a encontrar a ${pet.name}! ${pet.description}`;
-                      window.open(`https://wa.me/?text=${encodeURIComponent(message)}`, '_blank');
-                    }}
+                    onClick={handleContactOwner}
                     className="flex-1 min-w-[130px] flex items-center justify-center gap-2 px-4 py-2.5 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-all duration-200 shadow-md hover:shadow-lg text-sm"
                   >
                     <MessageCircle size={18} />
-                    WhatsApp
+                    Contactar dueño
                   </button>
                 </div>
               </div>
             </div>
           </div>
 
-          {/* Consejos adicionales */}
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -362,7 +415,7 @@ export const PetDetailsPage: React.FC = () => {
                   </li>
                   <li className="flex items-start gap-2">
                     <span>•</span>
-                    <span>Si ves a esta mascota, contacta al reportante</span>
+                    <span>Si ves a esta mascota, contacta al dueño</span>
                   </li>
                   <li className="flex items-start gap-2">
                     <span>•</span>

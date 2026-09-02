@@ -4,6 +4,7 @@ import { MapPin, Calendar, MessageSquare, Image as ImageIcon, Eye, Trash2, Loade
 import type { Mascota } from '../types';
 import imageService from '../service/image.service';
 import petService from '../service/pet.service';
+import geoService from '../service/geo.service';
 import toast from 'react-hot-toast';
 
 interface Props {
@@ -35,28 +36,27 @@ export const UiReportCard: React.FC<Props> = ({
 
   const loadImage = async () => {
     if (!report.imageId) {
-      console.log('ℹ️ La mascota no tiene imagen asociada');
+      console.log('La mascota no tiene imagen asociada');
       return;
     }
 
-    console.log('🔍 Cargando imagen con imageId:', report.imageId);
+    console.log('Cargando imagen con imageId:', report.imageId);
     setIsLoadingImage(true);
     setImageError(false);
     
     try {
       const url = imageService.getImageUrl(report.imageId);
-      console.log('🔍 URL generada:', url);
+      console.log('URL generada:', url);
       
-      // Verificar si la imagen existe
       const exists = await imageService.exists(report.imageId);
       if (exists) {
         setImageUrl(url);
       } else {
-        console.warn('⚠️ La imagen no existe en el servidor');
+        console.warn('La imagen no existe en el servidor');
         setImageError(true);
       }
     } catch (error) {
-      console.error('❌ Error loading image:', error);
+      console.error('Error loading image:', error);
       setImageError(true);
     } finally {
       setIsLoadingImage(false);
@@ -66,31 +66,58 @@ export const UiReportCard: React.FC<Props> = ({
   const handleDelete = async () => {
     if (!report.id) return;
 
+    // Cerrar el modal inmediatamente para evitar parpadeos
+    setShowConfirm(false);
+
     try {
       setIsDeleting(true);
+      
+      // Mostrar toast de carga
+      const loadingToast = toast.loading('Eliminando reporte...');
+      
+      // 1. Eliminar la ubicación asociada (si existe)
+      try {
+        console.log('Buscando ubicacion para reportId:', report.id);
+        const ubicaciones = await geoService.getAll();
+        const ubicacion = ubicaciones.find((u: any) => u.reportId === report.id);
+        
+        if (ubicacion) {
+          console.log('Ubicacion encontrada, eliminando:', ubicacion.id);
+          await geoService.delete(ubicacion.id);
+          console.log('Ubicacion eliminada');
+        }
+      } catch (geoError) {
+        console.warn('Error al eliminar ubicacion:', geoError);
+      }
+      
+      // 2. Eliminar la mascota
       const success = await petService.delete(report.id);
       
       if (!success) {
         throw new Error('No se pudo eliminar el reporte');
       }
       
-      // Si tiene imagen, eliminarla también
+      // 3. Si tiene imagen, eliminarla
       if (report.imageId) {
         try {
           await imageService.delete(report.imageId);
         } catch (imgError) {
-          console.warn('⚠️ No se pudo eliminar la imagen:', imgError);
+          console.warn('No se pudo eliminar la imagen:', imgError);
         }
       }
       
+      // Cerrar el toast de carga y mostrar éxito
+      toast.dismiss(loadingToast);
       toast.success('Reporte eliminado exitosamente');
+      
+      // Llamar al callback de eliminación
       if (onDelete) onDelete(report.id);
+      
     } catch (error) {
-      console.error('❌ Error deleting report:', error);
+      console.error('Error deleting report:', error);
       toast.error('Error al eliminar el reporte');
     } finally {
       setIsDeleting(false);
-      setShowConfirm(false);
     }
   };
 
@@ -139,7 +166,7 @@ export const UiReportCard: React.FC<Props> = ({
               alt={report.name} 
               className="w-full h-full object-cover"
               onError={() => {
-                console.error('❌ Error al cargar la imagen:', imageUrl);
+                console.error('Error al cargar la imagen:', imageUrl);
                 setImageError(true);
                 setImageUrl(null);
               }}

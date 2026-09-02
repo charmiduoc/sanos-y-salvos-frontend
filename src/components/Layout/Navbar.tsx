@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { Sun, Moon, Home, Map, GitCompare, AlertTriangle, ShieldCheck } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Sun, Moon, Home, Map, GitCompare, AlertTriangle, ShieldCheck, Users, PawPrint, LayoutDashboard } from 'lucide-react';
 import { Link, useLocation } from 'react-router-dom';
 import { UiNotificationBell } from '../UiNotificationBell';
 import type { Usuario } from '../../types';
@@ -13,17 +13,37 @@ interface NavbarProps {
 }
 
 export const Navbar: React.FC<NavbarProps> = ({ currentUser, onLogin, onRegister, onLogout }) => {
-  const [isDark, setIsDark] = useState(false);
+  const [isDark, setIsDark] = useState(() => {
+    // Verificar localStorage al cargar
+    const savedTheme = localStorage.getItem('theme');
+    if (savedTheme) {
+      return savedTheme === 'dark';
+    }
+    // Si no hay preferencia guardada, usar la del sistema
+    return window.matchMedia('(prefers-color-scheme: dark)').matches;
+  });
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const location = useLocation();
 
+  useEffect(() => {
+    // Aplicar el tema al cargar
+    if (isDark) {
+      document.documentElement.classList.add('dark');
+      localStorage.setItem('theme', 'dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+      localStorage.setItem('theme', 'light');
+    }
+  }, [isDark]);
+
   const toggleDarkMode = () => {
     setIsDark(!isDark);
-    document.documentElement.classList.toggle('dark');
   };
 
   const navLinks = [
     { path: '/', label: 'Inicio', icon: Home },
+    { path: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
+    { path: '/community', label: 'Comunidad', icon: Users },
     { path: '/map', label: 'Mapa', icon: Map },
     { path: '/matches', label: 'Coincidencias', icon: GitCompare },
     ...(currentUser ? [{ path: '/report', label: 'Nuevo Reporte', icon: AlertTriangle }] : []),
@@ -35,8 +55,8 @@ export const Navbar: React.FC<NavbarProps> = ({ currentUser, onLogin, onRegister
   return (
     <header className="fixed top-0 left-0 right-0 z-50 transition-shadow duration-300 bg-white/[0.97] dark:bg-gray-800/[0.97] shadow-none border-b border-gray-100 dark:border-gray-700">
       <div className="mx-auto flex h-[72px] max-w-7xl items-center justify-between px-5 lg:px-8">
-        {/* Logo - Estilo Dogin */}
-        <Link to="/" className="flex items-center gap-2 flex-shrink-0">
+        {/* Logo - Redirige al Dashboard */}
+        <Link to="/dashboard" className="flex items-center gap-2 flex-shrink-0">
           <img 
             src={logo} 
             alt="Sanos y Salvos" 

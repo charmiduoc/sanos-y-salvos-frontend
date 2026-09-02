@@ -3,6 +3,11 @@ import API_CONFIG from './api.config';
 import { authFetch, setStoredUser, getStoredUser } from './auth.service';
 import type { Usuario } from '../types';
 
+// Tipo para actualizar usuario (incluye password opcional)
+type UserUpdateData = Partial<Usuario> & {
+  password?: string;
+};
+
 class UserService {
   private baseUrl = API_CONFIG.user;
 
@@ -57,7 +62,7 @@ class UserService {
     
     if (!response.ok) {
       if (response.status === 409) {
-        throw new Error('El email ya está registrado');
+        throw new Error('El email ya esta registrado');
       }
       if (response.status === 403) {
         throw new Error('No tienes permiso para registrar usuarios.');
@@ -91,13 +96,12 @@ class UserService {
     const data = await response.json();
     console.log('Respuesta del login:', data);
     
-    // Extraer usuario y token
     const user = data.usuario ?? data.user ?? data;
     const token = data.token ?? data.accessToken ?? user.token ?? user.accessToken;
     
     if (!token) {
-      console.error('No se encontró token en la respuesta');
-      throw new Error('No se pudo obtener el token de autenticación');
+      console.error('No se encontro token en la respuesta');
+      throw new Error('No se pudo obtener el token de autenticacion');
     }
     
     const userWithToken: Usuario = {
@@ -109,10 +113,8 @@ class UserService {
     
     console.log('Usuario con token:', userWithToken);
     
-    // Guardar en localStorage
     setStoredUser(userWithToken);
     
-    // Guardar refresh token por separado
     if (userWithToken.refreshToken) {
       localStorage.setItem('refresh_token', userWithToken.refreshToken);
     }
@@ -124,7 +126,6 @@ class UserService {
     console.log('getMyPets - Buscando mascotas para userId:', userId);
     
     try {
-      // Intentar obtener mascotas del microservicio de mascotas
       const response = await authFetch(`${API_CONFIG.pet}/api/mascotas?ownerId=${userId}`);
       
       if (response.ok) {
@@ -134,7 +135,6 @@ class UserService {
         return pets;
       }
       
-      // Fallback: obtener todas y filtrar
       console.log('getMyPets - Fallback: obteniendo todas las mascotas');
       const allPetsResponse = await authFetch(`${API_CONFIG.pet}/api/mascotas`);
       
@@ -159,14 +159,43 @@ class UserService {
     }
   }
 
-  async update(id: string, usuario: Usuario): Promise<Usuario> {
+  async update(id: string, userData: UserUpdateData): Promise<Usuario> {
+    console.log('Actualizando usuario:', id, userData);
+    
+    const currentUser = getStoredUser();
+    
+    const payload: any = {
+      id: id,
+      email: userData.email || '',
+      name: userData.name || '',
+      phone: userData.phone || '',
+      role: userData.role || 'ROLE_USER',
+      active: userData.active !== undefined ? userData.active : true,
+      petsIds: userData.petsIds || [],
+      refreshToken: currentUser?.refreshToken || null
+    };
+
+    if (userData.password) {
+      payload.password = userData.password;
+    }
+
+    console.log('Payload enviado:', payload);
+
     const response = await authFetch(`${this.baseUrl}/api/usuarios/${id}`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(usuario)
+      body: JSON.stringify(payload)
     });
-    if (!response.ok) throw new Error('Error al actualizar usuario');
-    return response.json();
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('Error al actualizar:', errorText);
+      throw new Error(`Error al actualizar usuario: ${response.status} - ${errorText}`);
+    }
+
+    const result = await response.json();
+    console.log('Usuario actualizado:', result);
+    return result;
   }
 
   async delete(id: string): Promise<boolean> {

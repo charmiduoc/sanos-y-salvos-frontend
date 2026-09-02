@@ -1,3 +1,4 @@
+// src/App.tsx
 import React from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
@@ -11,6 +12,7 @@ import { MapPage } from './pages/MapPage';
 import { Matches } from './pages/Matches';
 import { Report } from './pages/Report';
 import { PetDetailsPage } from './pages/PetDetailsPage';
+import { Community } from './pages/Community';
 
 function App() {
   return (
@@ -67,6 +69,15 @@ function App() {
           element={
             <AuthGuard>
               <PetDetailsPage />
+            </AuthGuard>
+          }
+        />
+
+        <Route
+          path="/community"
+          element={
+            <AuthGuard>
+              <Community />
             </AuthGuard>
           }
         />
