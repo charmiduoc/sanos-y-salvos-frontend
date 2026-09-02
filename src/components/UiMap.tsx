@@ -1,11 +1,10 @@
-// src/components/UiMap.tsx
 import React, { useState, useEffect } from 'react';
 import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
 import { Map, Flame, Layers, Loader2 } from 'lucide-react';
 import L from 'leaflet';
 import geoService from '../service/geo.service';
 import petService from '../service/pet.service';
-import type { Ubicacion } from '../types';
+import type { Ubicacion, LocationWithPet } from '../types';
 
 import 'leaflet/dist/leaflet.css';
 import iconMarker from 'leaflet/dist/images/marker-icon.png';
@@ -21,12 +20,6 @@ const DefaultIcon = L.icon({
   popupAnchor: [1, -34],
 });
 L.Marker.prototype.options.icon = DefaultIcon;
-
-interface LocationWithPet extends Ubicacion {
-  petName?: string;
-  petStatus?: string;
-  ownerId?: string;
-}
 
 interface UiMapProps {
   currentUserId?: string;
@@ -49,45 +42,42 @@ export const UiMap: React.FC<UiMapProps> = ({ currentUserId, filterByUser = fals
     try {
       setIsLoading(true);
       setError(null);
-      
+
       let ubicacionesData: Ubicacion[] = [];
-      
+
       if (filterByUser && currentUserId) {
         console.log('Cargando ubicaciones del usuario:', currentUserId);
-        
-        // Intentar método 1
         ubicacionesData = await geoService.getUbicacionesByUserId(currentUserId);
-        console.log(`Método 1: ${ubicacionesData.length} ubicaciones encontradas`);
-        
-        // Si no encuentra, intentar método 2 (alternativo)
-        if (ubicacionesData.length === 0) {
-          console.log('Intentando método alternativo...');
-          ubicacionesData = await geoService.getUbicacionesByUserIdAlt(currentUserId);
-          console.log(`Método 2: ${ubicacionesData.length} ubicaciones encontradas`);
-        }
+        console.log(`Encontradas ${ubicacionesData.length} ubicaciones`);
       } else {
         console.log('Cargando todas las ubicaciones');
         ubicacionesData = await geoService.getAll();
         console.log(`Encontradas ${ubicacionesData.length} ubicaciones totales`);
       }
-      
-      // Enriquecer con datos de las mascotas
+
       const ubicacionesConPet = await Promise.all(
         ubicacionesData.map(async (ubicacion) => {
           try {
-            const pet = await petService.getById(ubicacion.reportId);
+            const pet = await petService.getById(ubicacion.reportId || '');
             return {
               ...ubicacion,
-              petName: pet.name,
-              petStatus: pet.status,
-              ownerId: pet.ownerId
-            };
+              petName: pet?.name || 'Mascota sin nombre',
+              petStatus: pet?.status || 'Desconocido',
+              ownerId: pet?.ownerId || '',
+              fechaRegistro: ubicacion.fechaRegistro || ubicacion.createdAt || new Date().toISOString()
+            } as LocationWithPet;
           } catch {
-            return ubicacion;
+            return {
+              ...ubicacion,
+              petName: 'Mascota no disponible',
+              petStatus: 'Desconocido',
+              ownerId: '',
+              fechaRegistro: ubicacion.fechaRegistro || ubicacion.createdAt || new Date().toISOString()
+            } as LocationWithPet;
           }
         })
       );
-      
+
       setUbicaciones(ubicacionesConPet);
     } catch (err) {
       console.error('Error loading locations:', err);
@@ -111,21 +101,21 @@ export const UiMap: React.FC<UiMapProps> = ({ currentUserId, filterByUser = fals
         </h3>
 
         <div className="flex bg-gray-100 dark:bg-gray-700 p-1 rounded-lg gap-1">
-          <button 
-            onClick={() => setModoVista('puntos')} 
+          <button
+            onClick={() => setModoVista('puntos')}
             className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
-              modoVista === 'puntos' 
-                ? 'bg-white dark:bg-gray-600 text-gray-900 dark:text-white shadow-sm' 
+              modoVista === 'puntos'
+                ? 'bg-white dark:bg-gray-600 text-gray-900 dark:text-white shadow-sm'
                 : 'text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white'
             }`}
           >
             Marcadores
           </button>
-          <button 
-            onClick={() => setModoVista('heatmap')} 
+          <button
+            onClick={() => setModoVista('heatmap')}
             className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors flex items-center gap-1 ${
-              modoVista === 'heatmap' 
-                ? 'bg-white dark:bg-gray-600 text-gray-900 dark:text-white shadow-sm' 
+              modoVista === 'heatmap'
+                ? 'bg-white dark:bg-gray-600 text-gray-900 dark:text-white shadow-sm'
                 : 'text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white'
             }`}
           >
@@ -148,8 +138,8 @@ export const UiMap: React.FC<UiMapProps> = ({ currentUserId, filterByUser = fals
           <div className="flex flex-col items-center justify-center h-full bg-gray-50 dark:bg-gray-900 text-gray-500 dark:text-gray-400">
             <Map size={48} className="mb-2 opacity-50" />
             <p className="text-center">
-              {filterByUser 
-                ? 'No tienes ubicaciones registradas aún' 
+              {filterByUser
+                ? 'No tienes ubicaciones registradas aún'
                 : 'No hay ubicaciones disponibles'}
             </p>
           </div>
@@ -160,32 +150,35 @@ export const UiMap: React.FC<UiMapProps> = ({ currentUserId, filterByUser = fals
               url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
             />
 
-            {modoVista === 'puntos' && ubicaciones.map((ubicacion) => {
-              const coordinates = ubicacion.posicion.coordinates;
-              return (
-                <Marker key={ubicacion.id} position={[coordinates[1], coordinates[0]]}>
-                  <Popup>
-                    <div className="text-sm">
-                      <strong className="text-gray-900 dark:text-white">
-                        {ubicacion.petName || 'Mascota'}
-                      </strong>
-                      <br />
-                      <span className="text-gray-600 dark:text-gray-300">
-                        {ubicacion.descripcion}
-                      </span>
-                      <br />
-                      <small className="text-gray-500 dark:text-gray-400">
-                        Estado: {ubicacion.petStatus || 'Desconocido'}
-                      </small>
-                      <br />
-                      <small className="text-gray-500 dark:text-gray-400">
-                        {new Date(ubicacion.fechaRegistro).toLocaleString()}
-                      </small>
-                    </div>
-                  </Popup>
-                </Marker>
-              );
-            })}
+            {modoVista === 'puntos' &&
+              ubicaciones.map((ubicacion) => {
+                const coords = ubicacion.posicion?.coordinates || [0, 0];
+                return (
+                  <Marker key={ubicacion.id} position={[coords[1], coords[0]]}>
+                    <Popup>
+                      <div className="text-sm">
+                        <strong className="text-gray-900 dark:text-white">
+                          {ubicacion.petName || 'Mascota'}
+                        </strong>
+                        <br />
+                        <span className="text-gray-600 dark:text-gray-300">
+                          {ubicacion.descripcion}
+                        </span>
+                        <br />
+                        <small className="text-gray-500 dark:text-gray-400">
+                          Estado: {ubicacion.petStatus || 'Desconocido'}
+                        </small>
+                        <br />
+                        <small className="text-gray-500 dark:text-gray-400">
+                          {ubicacion.fechaRegistro
+                            ? new Date(ubicacion.fechaRegistro).toLocaleString()
+                            : ''}
+                        </small>
+                      </div>
+                    </Popup>
+                  </Marker>
+                );
+              })}
           </MapContainer>
         )}
 
@@ -194,7 +187,7 @@ export const UiMap: React.FC<UiMapProps> = ({ currentUserId, filterByUser = fals
           <span>{ubicaciones.length} ubicaciones cargadas</span>
         </div>
       </div>
-      
+
       <style>{`
         @keyframes spin {
           from { transform: rotate(0deg); }

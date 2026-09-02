@@ -8,7 +8,7 @@ class UserService {
 
   async getAll(): Promise<Usuario[]> {
     try {
-      const response = await authFetch(this.baseUrl);
+      const response = await authFetch(`${this.baseUrl}/api/usuarios`);
       const data = await response.json();
       if (data._embedded?.usuarioList) return data._embedded.usuarioList;
       if (Array.isArray(data)) return data;
@@ -20,7 +20,7 @@ class UserService {
   }
 
   async getById(id: string): Promise<Usuario> {
-    const response = await authFetch(`${this.baseUrl}/${id}`);
+    const response = await authFetch(`${this.baseUrl}/api/usuarios/${id}`);
     if (!response.ok) throw new Error('Usuario no encontrado');
     return response.json();
   }
@@ -40,7 +40,7 @@ class UserService {
       backendRole = 'ROLE_USER';
     }
     
-    const response = await authFetch(`${this.baseUrl}/register`, {
+    const response = await fetch(`${this.baseUrl}/api/usuarios/register`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -71,21 +71,34 @@ class UserService {
   }
 
   async login(credentials: { email: string; password: string; rememberMe?: boolean }): Promise<Usuario> {
-    const response = await fetch(`${this.baseUrl}/login`, {
+    console.log('Intentando login con:', credentials.email);
+    
+    const response = await fetch(`${this.baseUrl}/api/auth/login`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email: credentials.email, password: credentials.password })
+      body: JSON.stringify({ 
+        email: credentials.email, 
+        password: credentials.password 
+      })
     });
     
     if (!response.ok) {
       const body = await response.text();
+      console.error('Error en login:', response.status, body);
       throw new Error(`Login failed: ${response.status} ${response.statusText}${body ? ` - ${body}` : ''}`);
     }
 
     const data = await response.json();
-    const user = (data.usuario ?? data.user ?? data) as Usuario;
+    console.log('Respuesta del login:', data);
     
+    // Extraer usuario y token
+    const user = data.usuario ?? data.user ?? data;
     const token = data.token ?? data.accessToken ?? user.token ?? user.accessToken;
+    
+    if (!token) {
+      console.error('No se encontró token en la respuesta');
+      throw new Error('No se pudo obtener el token de autenticación');
+    }
     
     const userWithToken: Usuario = {
       ...user,
@@ -94,28 +107,36 @@ class UserService {
       refreshToken: data.refreshToken ?? user.refreshToken
     };
     
+    console.log('Usuario con token:', userWithToken);
+    
+    // Guardar en localStorage
     setStoredUser(userWithToken);
+    
+    // Guardar refresh token por separado
+    if (userWithToken.refreshToken) {
+      localStorage.setItem('refresh_token', userWithToken.refreshToken);
+    }
+    
     return userWithToken;
   }
 
-  // Obtener mascotas del usuario actual con fallback
   async getMyPets(userId: string): Promise<any[]> {
-    console.log('🔍 getMyPets - Buscando mascotas para userId:', userId);
+    console.log('getMyPets - Buscando mascotas para userId:', userId);
     
     try {
-      // Intentar obtener del endpoint específico del usuario
-      const response = await authFetch(`${this.baseUrl}/${userId}/pets`);
+      // Intentar obtener mascotas del microservicio de mascotas
+      const response = await authFetch(`${API_CONFIG.pet}/api/mascotas?ownerId=${userId}`);
       
       if (response.ok) {
         const data = await response.json();
         const pets = data._embedded?.mascotaList || data || [];
-        console.log('getMyPets - Mascotas encontradas (endpoint usuario):', pets.length);
+        console.log('getMyPets - Mascotas encontradas:', pets.length);
         return pets;
       }
       
-      // Si el endpoint falla, hacer fallback: obtener todas y filtrar
+      // Fallback: obtener todas y filtrar
       console.log('getMyPets - Fallback: obteniendo todas las mascotas');
-      const allPetsResponse = await authFetch(API_CONFIG.pet);
+      const allPetsResponse = await authFetch(`${API_CONFIG.pet}/api/mascotas`);
       
       if (!allPetsResponse.ok) {
         console.error('getMyPets - Error al obtener todas las mascotas');
@@ -127,35 +148,19 @@ class UserService {
       
       console.log('getMyPets - Total de mascotas:', allPets.length);
       
-      // Filtrar por ownerId
       const userPets = allPets.filter((pet: any) => pet.ownerId === userId);
       
       console.log(`getMyPets - Mascotas filtradas para usuario ${userId}:`, userPets.length);
-      console.log('getMyPets - Detalle:', userPets);
       
       return userPets;
     } catch (error) {
       console.error('getMyPets - Error:', error);
-      
-      // Último intento: obtener todas y filtrar
-      try {
-        console.log('getMyPets - Último intento: obtener todas las mascotas');
-        const response = await authFetch(API_CONFIG.pet);
-        if (!response.ok) return [];
-        const data = await response.json();
-        const allPets = data._embedded?.mascotaList || data || [];
-        const userPets = allPets.filter((pet: any) => pet.ownerId === userId);
-        console.log(`getMyPets - Mascotas encontradas en último intento:`, userPets.length);
-        return userPets;
-      } catch (finalError) {
-        console.error('getMyPets - Error en último intento:', finalError);
-        return [];
-      }
+      return [];
     }
   }
 
   async update(id: string, usuario: Usuario): Promise<Usuario> {
-    const response = await authFetch(`${this.baseUrl}/${id}`, {
+    const response = await authFetch(`${this.baseUrl}/api/usuarios/${id}`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(usuario)
@@ -165,7 +170,7 @@ class UserService {
   }
 
   async delete(id: string): Promise<boolean> {
-    const response = await authFetch(`${this.baseUrl}/${id}`, {
+    const response = await authFetch(`${this.baseUrl}/api/usuarios/${id}`, {
       method: 'DELETE'
     });
     return response.ok;
@@ -177,6 +182,7 @@ class UserService {
 
   logout(): void {
     localStorage.removeItem('user');
+    localStorage.removeItem('refresh_token');
     sessionStorage.removeItem('user');
   }
 }

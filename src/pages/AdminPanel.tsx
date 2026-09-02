@@ -1,322 +1,321 @@
-import React, { useEffect, useState } from 'react';
+// src/pages/AdminPanel.tsx
+import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
+import { Users, UserPlus, Shield, Trash2, Edit, Search, Loader2, ArrowLeft } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
-import { ShieldCheck, User, PawPrint, AlertTriangle, CheckCircle2, Square } from 'lucide-react';
 import userService from '../service/user.service';
-import petService from '../service/pet.service';
-import type { Usuario, Mascota } from '../types';
 import { AdminRegisterModal } from '../components/Auth/AdminRegisterModal';
+import { useAuth } from '../context/AuthContext';
+import type { Usuario, RegisterRequest } from '../types';
 
-interface AdminPanelProps {
-  currentUser: Usuario | null;
-}
-
-export const AdminPanel: React.FC<AdminPanelProps> = ({ currentUser }) => {
+export const AdminPanel: React.FC = () => {
+  const { user } = useAuth();
+  const navigate = useNavigate();
   const [users, setUsers] = useState<Usuario[]>([]);
-  const [pets, setPets] = useState<Mascota[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [refreshFlag, setRefreshFlag] = useState(0);
+  const [searchTerm, setSearchTerm] = useState('');
   const [showRegisterModal, setShowRegisterModal] = useState(false);
+  const [isDeleting, setIsDeleting] = useState<string | null>(null);
 
-  const loadData = async () => {
-    setIsLoading(true);
+  useEffect(() => {
+    if (user?.role === 'ROLE_ADMIN') {
+      loadUsers();
+    }
+  }, [user]);
+
+  const loadUsers = async () => {
     try {
-      const [usersResponse, petsResponse] = await Promise.all([
-        userService.getAll(), 
-        petService.getAll()
-      ]);
-      setUsers(usersResponse);
-      setPets(petsResponse);
+      setIsLoading(true);
+      const data = await userService.getAll();
+      setUsers(data);
     } catch (error) {
-      console.error('Error loading admin data:', error);
-      toast.error('No se pudo cargar la información del panel admin.');
+      console.error('Error loading users:', error);
+      toast.error('Error al cargar los usuarios');
     } finally {
       setIsLoading(false);
     }
   };
 
-  useEffect(() => {
-    if (currentUser) {
-      loadData();
-    }
-  }, [currentUser, refreshFlag]);
-
-  const handleToggleActive = async (user: Usuario) => {
-    try {
-      const updatedUser = await userService.update(user.id!, { ...user, active: !user.active });
-      toast.success(`Usuario ${updatedUser.name} ${updatedUser.active ? 'activado' : 'desactivado'}.`);
-      setRefreshFlag((value) => value + 1);
-    } catch (error) {
-      console.error('Error updating user:', error);
-      toast.error('No se pudo cambiar el estado del usuario.');
-    }
-  };
-
-  const handleDeleteUser = async (userId: string) => {
-    try {
-      await userService.delete(userId);
-      toast.success('Usuario eliminado correctamente.');
-      setRefreshFlag((value) => value + 1);
-    } catch (error) {
-      console.error('Error deleting user:', error);
-      toast.error('No se pudo eliminar el usuario.');
-    }
-  };
-
-  const handleUpdatePetStatus = async (pet: Mascota, nuevoEstado: 'FOUND' | 'REUNITED') => {
-    try {
-      await petService.updateStatus(pet.id!, nuevoEstado, currentUser?.id);
-      toast.success(`Estado de ${pet.name} actualizado a ${nuevoEstado === 'FOUND' ? 'Encontrado' : 'Reunido'}.`);
-      setRefreshFlag((value) => value + 1);
-    } catch (error) {
-      console.error('Error updating pet status:', error);
-      toast.error('No se pudo actualizar el estado de la mascota.');
-    }
-  };
-
-  const handleDeletePet = async (petId: string) => {
-    try {
-      await petService.delete(petId);
-      toast.success('Mascota eliminada correctamente.');
-      setRefreshFlag((value) => value + 1);
-    } catch (error) {
-      console.error('Error deleting pet:', error);
-      toast.error('No se pudo eliminar la mascota.');
-    }
-  };
-
-  const handleRegisterUser = async (userData: any) => {
+  const handleRegister = async (userData: RegisterRequest) => {
     try {
       await userService.register(userData);
-      setRefreshFlag((value) => value + 1);
-    } catch (error) {
+      toast.success('Usuario registrado exitosamente');
+      loadUsers();
+    } catch (error: any) {
+      toast.error(error.message || 'Error al registrar usuario');
       throw error;
     }
   };
 
-  // Estadísticas corregidas para usar ROLE_ADMIN y ROLE_USER
-  const stats = {
-    totalUsers: users.length,
-    adminUsers: users.filter((user) => user.role === 'ROLE_ADMIN').length,
-    citizenUsers: users.filter((user) => user.role === 'ROLE_USER').length,
-    totalPets: pets.length,
-    lostPets: pets.filter((pet) => pet.status === 'LOST').length,
-    foundPets: pets.filter((pet) => pet.status === 'FOUND').length,
-    reunitedPets: pets.filter((pet) => pet.status === 'REUNITED').length,
+  const handleDelete = async (userId: string) => {
+    if (!confirm('¿Estás seguro de eliminar este usuario?')) return;
+    
+    try {
+      setIsDeleting(userId);
+      await userService.delete(userId);
+      toast.success('Usuario eliminado exitosamente');
+      loadUsers();
+    } catch (error) {
+      console.error('Error deleting user:', error);
+      toast.error('Error al eliminar usuario');
+    } finally {
+      setIsDeleting(null);
+    }
   };
 
-  // Función para mostrar el rol legible
-  const getRoleDisplay = (role: string) => {
-    if (role === 'ROLE_ADMIN') return 'Administrador';
-    if (role === 'ROLE_USER') return 'Ciudadano';
-    return role;
-  };
+  const filteredUsers = users.filter(user =>
+    user.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    user.email?.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
+  // ✅ Si no hay usuario autenticado
+  if (!user) {
+    return (
+      <div className="pt-[72px] min-h-screen bg-gray-50 dark:bg-gray-900">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20 text-center">
+          <Shield className="mx-auto h-16 w-16 text-gray-400 mb-4" />
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">
+            Acceso Restringido
+          </h1>
+          <p className="text-gray-600 dark:text-gray-400">
+            Debes iniciar sesión para acceder al panel de administración.
+          </p>
+          <button
+            onClick={() => navigate('/login')}
+            className="mt-6 px-6 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
+          >
+            Ir a Iniciar Sesión
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // ✅ Si no es administrador
+  if (user.role !== 'ROLE_ADMIN') {
+    return (
+      <div className="pt-[72px] min-h-screen bg-gray-50 dark:bg-gray-900">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20 text-center">
+          <Shield className="mx-auto h-16 w-16 text-red-500 mb-4" />
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">
+            No autorizado
+          </h1>
+          <p className="text-gray-600 dark:text-gray-400">
+            No tienes permisos para acceder al panel de administración.
+          </p>
+          <button
+            onClick={() => navigate('/dashboard')}
+            className="mt-6 px-6 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors"
+          >
+            Volver al Dashboard
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="pt-[72px] min-h-screen bg-gray-50 dark:bg-gray-900">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* ✅ Botón Volver */}
+        <button
+          onClick={() => navigate('/dashboard')}
+          className="inline-flex items-center gap-2 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors mb-6 group"
+        >
+          <ArrowLeft size={18} className="group-hover:-translate-x-1 transition-transform" />
+          Volver al Dashboard
+        </button>
+
         <motion.div
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
           className="mb-8"
         >
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
             <div>
-              <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Panel de Administración</h1>
-              <p className="mt-2 text-gray-600 dark:text-gray-400 max-w-2xl">
-                Gestiona usuarios y reportes desde una sola vista. Solo los administradores pueden ver esta sección.
+              <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
+                Panel de Administración
+              </h1>
+              <p className="text-gray-600 dark:text-gray-400 mt-1">
+                Gestiona los usuarios del sistema
               </p>
             </div>
-            <div className="inline-flex items-center gap-2 rounded-full bg-red-600 px-4 py-2 text-white shadow-sm">
-              <ShieldCheck className="h-5 w-5" />
-              Admin
-            </div>
+            <button
+              onClick={() => setShowRegisterModal(true)}
+              className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+            >
+              <UserPlus className="h-4 w-4" />
+              Registrar Usuario
+            </button>
           </div>
         </motion.div>
 
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-7 gap-3 md:gap-4 mb-8">
-          <StatCard title="Usuarios" value={stats.totalUsers} icon={User} color="blue" />
-          <StatCard title="Admins" value={stats.adminUsers} icon={ShieldCheck} color="red" />
-          <StatCard title="Ciudadanos" value={stats.citizenUsers} icon={User} color="yellow" />
-          <StatCard title="Reportes" value={stats.totalPets} icon={PawPrint} color="red" />
-          <StatCard title="Perdidos" value={stats.lostPets} icon={AlertTriangle} color="yellow" />
-          <StatCard title="Encontrados" value={stats.foundPets} icon={CheckCircle2} color="green" />
-          <StatCard title="Reunidos" value={stats.reunitedPets} icon={Square} color="purple" />
+        {/* Stats */}
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
+          <div className="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-md">
+            <div className="flex items-center gap-3">
+              <Users className="h-8 w-8 text-blue-500" />
+              <div>
+                <p className="text-sm text-gray-500 dark:text-gray-400">Total Usuarios</p>
+                <p className="text-2xl font-bold text-gray-900 dark:text-white">{users.length}</p>
+              </div>
+            </div>
+          </div>
+          <div className="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-md">
+            <div className="flex items-center gap-3">
+              <Shield className="h-8 w-8 text-purple-500" />
+              <div>
+                <p className="text-sm text-gray-500 dark:text-gray-400">Administradores</p>
+                <p className="text-2xl font-bold text-gray-900 dark:text-white">
+                  {users.filter(u => u.role === 'ROLE_ADMIN').length}
+                </p>
+              </div>
+            </div>
+          </div>
+          <div className="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-md">
+            <div className="flex items-center gap-3">
+              <Users className="h-8 w-8 text-green-500" />
+              <div>
+                <p className="text-sm text-gray-500 dark:text-gray-400">Usuarios Activos</p>
+                <p className="text-2xl font-bold text-gray-900 dark:text-white">
+                  {users.filter(u => u.active).length}
+                </p>
+              </div>
+            </div>
+          </div>
         </div>
 
-        {isLoading ? (
-          <div className="rounded-xl bg-white dark:bg-gray-800 p-8 shadow-md text-center text-gray-500 dark:text-gray-400">
-            Cargando datos del panel admin...
+        {/* Search */}
+        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md p-4 mb-6">
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+            <input
+              type="text"
+              placeholder="Buscar usuario por nombre o email..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500"
+            />
           </div>
-        ) : (
-          <div className="grid gap-6 xl:grid-cols-2">
-            <section className="rounded-xl bg-white dark:bg-gray-800 p-6 shadow-md">
-              <div className="flex justify-between items-center mb-4">
-                <h2 className="text-xl font-semibold text-gray-900 dark:text-white">Usuarios registrados</h2>
-                <button
-                  onClick={() => setShowRegisterModal(true)}
-                  className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg flex items-center gap-2 transition-colors"
-                >
-                  <User className="h-4 w-4" />
-                  Nuevo Usuario
-                </button>
-              </div>
-              <div className="space-y-3">
-                {users.length === 0 ? (
-                  <p className="text-gray-500 dark:text-gray-400">No hay usuarios disponibles.</p>
-                ) : (
-                  <div className="space-y-3">
-                    {users.map((user) => (
-                      <div key={user.id} className="rounded-2xl border border-gray-200 dark:border-gray-700 p-4 bg-gray-50 dark:bg-gray-900">
-                        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                          <div>
-                            <p className="font-semibold text-gray-900 dark:text-white">{user.name}</p>
-                            <p className="text-sm text-gray-500 dark:text-gray-400">{user.email}</p>
-                            <p className="text-sm text-gray-500 dark:text-gray-400">
-                              Rol: {getRoleDisplay(user.role)}
-                            </p>
-                            <p className="text-sm text-gray-500 dark:text-gray-400">Estado: {user.active ? 'Activo' : 'Desactivado'}</p>
-                          </div>
-                          <div className="flex flex-wrap gap-2">
-                            <button
-                              disabled={!user.id || user.id === currentUser?.id}
-                              onClick={() => handleToggleActive(user)}
-                              className="rounded-xl border border-red-600 px-3 py-2 text-sm font-medium text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-900/30 disabled:cursor-not-allowed disabled:opacity-50"
-                            >
-                              {user.active ? 'Desactivar' : 'Activar'}
-                            </button>
-                            <button
-                              disabled={!user.id || user.id === currentUser?.id}
-                              onClick={() => user.id && handleDeleteUser(user.id)}
-                              className="rounded-xl bg-gray-100 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600 disabled:cursor-not-allowed disabled:opacity-50"
-                            >
-                              Eliminar
-                            </button>
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            </section>
+        </div>
 
-            <section className="rounded-xl bg-white dark:bg-gray-800 p-6 shadow-md">
-              <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">Reportes</h2>
-              <div className="space-y-3">
-                {pets.length === 0 ? (
-                  <p className="text-gray-500 dark:text-gray-400">No hay reportes disponibles.</p>
-                ) : (
-                  <div className="space-y-3">
-                    {pets.map((pet) => (
-                      <div key={pet.id} className="rounded-2xl border border-gray-200 dark:border-gray-700 p-4 bg-gray-50 dark:bg-gray-900">
-                        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                          <div>
-                            <p className="font-semibold text-gray-900 dark:text-white">{pet.name}</p>
-                            <p className="text-sm text-gray-500 dark:text-gray-400">Estado: {pet.status}</p>
-                            <p className="text-sm text-gray-500 dark:text-gray-400">Dueño: {pet.ownerId ?? 'Desconocido'}</p>
+        {/* Users Table */}
+        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md overflow-hidden">
+          {isLoading ? (
+            <div className="flex items-center justify-center py-12">
+              <Loader2 className="h-8 w-8 animate-spin text-blue-500" />
+            </div>
+          ) : filteredUsers.length === 0 ? (
+            <div className="text-center py-12 text-gray-500 dark:text-gray-400">
+              No se encontraron usuarios
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead className="bg-gray-50 dark:bg-gray-700">
+                  <tr>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                      Usuario
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                      Email
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                      Teléfono
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                      Rol
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                      Estado
+                    </th>
+                    <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                      Acciones
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
+                  {filteredUsers.map((user) => (
+                    <motion.tr
+                      key={user.id}
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      className="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors"
+                    >
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="flex items-center">
+                          <div className="h-8 w-8 rounded-full bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center text-blue-600 dark:text-blue-400 font-semibold text-sm">
+                            {user.name?.charAt(0) || '?'}
                           </div>
-                          <div className="flex flex-wrap gap-2">
-                            {pet.status === 'LOST' && (
-                              <button
-                                onClick={() => handleUpdatePetStatus(pet, 'FOUND')}
-                                className="rounded-xl bg-green-600 px-3 py-2 text-sm font-medium text-white hover:bg-green-700"
-                              >
-                                Marcar encontrado
-                              </button>
-                            )}
-                            {pet.status !== 'REUNITED' && (
-                              <button
-                                onClick={() => handleUpdatePetStatus(pet, 'REUNITED')}
-                                className="rounded-xl bg-blue-600 px-3 py-2 text-sm font-medium text-white hover:bg-blue-700"
-                              >
-                                Marcar reunido
-                              </button>
-                            )}
-                            <button
-                              onClick={() => pet.id && handleDeletePet(pet.id)}
-                              className="rounded-xl border border-red-600 px-3 py-2 text-sm font-medium text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-900/30"
-                            >
-                              Eliminar
-                            </button>
-                          </div>
+                          <span className="ml-3 text-sm font-medium text-gray-900 dark:text-white">
+                            {user.name}
+                          </span>
                         </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            </section>
-          </div>
-        )}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600 dark:text-gray-300">
+                        {user.email}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600 dark:text-gray-300">
+                        {user.phone || '-'}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <span className={`px-2 py-1 text-xs font-medium rounded-full ${
+                          user.role === 'ROLE_ADMIN'
+                            ? 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400'
+                            : 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400'
+                        }`}>
+                          {user.role === 'ROLE_ADMIN' ? 'Administrador' : 'Ciudadano'}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <span className={`px-2 py-1 text-xs font-medium rounded-full ${
+                          user.active
+                            ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
+                            : 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'
+                        }`}>
+                          {user.active ? 'Activo' : 'Inactivo'}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-right">
+                        <div className="flex items-center justify-end gap-2">
+                          <button
+                            onClick={() => {
+                              toast('Función de edición en desarrollo');
+                            }}
+                            className="p-1.5 text-blue-600 hover:bg-blue-100 dark:hover:bg-blue-900/30 rounded-lg transition-colors"
+                          >
+                            <Edit className="h-4 w-4" />
+                          </button>
+                          <button
+                            onClick={() => handleDelete(user.id)}
+                            disabled={isDeleting === user.id}
+                            className="p-1.5 text-red-600 hover:bg-red-100 dark:hover:bg-red-900/30 rounded-lg transition-colors disabled:opacity-50"
+                          >
+                            {isDeleting === user.id ? (
+                              <Loader2 className="h-4 w-4 animate-spin" />
+                            ) : (
+                              <Trash2 className="h-4 w-4" />
+                            )}
+                          </button>
+                        </div>
+                      </td>
+                    </motion.tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
       </div>
 
+      {/* Register Modal */}
       {showRegisterModal && (
         <AdminRegisterModal
           onClose={() => setShowRegisterModal(false)}
-          onRegister={handleRegisterUser}
+          onRegister={handleRegister}
         />
       )}
     </div>
-  );
-};
-
-const StatCard = ({ title, value, icon: Icon, color }: { title: string; value: number; icon: any; color: string }) => {
-  const classes: Record<string, { bg: string; text: string; darkBg: string; darkText: string }> = {
-    blue: {
-      bg: 'bg-blue-100',
-      text: 'text-blue-600',
-      darkBg: 'dark:bg-blue-900/20',
-      darkText: 'dark:text-blue-300'
-    },
-    red: {
-      bg: 'bg-red-100',
-      text: 'text-red-600',
-      darkBg: 'dark:bg-red-900/20',
-      darkText: 'dark:text-red-300'
-    },
-    yellow: {
-      bg: 'bg-yellow-100',
-      text: 'text-yellow-600',
-      darkBg: 'dark:bg-yellow-900/20',
-      darkText: 'dark:text-yellow-300'
-    },
-    green: {
-      bg: 'bg-green-100',
-      text: 'text-green-600',
-      darkBg: 'dark:bg-green-900/20',
-      darkText: 'dark:text-green-300'
-    },
-    purple: {
-      bg: 'bg-purple-100',
-      text: 'text-purple-600',
-      darkBg: 'dark:bg-purple-900/20',
-      darkText: 'dark:text-purple-300'
-    }
-  };
-
-  const colorClasses = classes[color] ?? classes.blue;
-
-  return (
-    <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.3 }}
-      className="rounded-xl bg-white dark:bg-gray-800 p-3 shadow-md hover:shadow-lg transition-shadow duration-200"
-    >
-      <div className="flex flex-col items-center text-center gap-2">
-        <div className={`rounded-xl p-2 ${colorClasses.bg} ${colorClasses.text} ${colorClasses.darkBg} ${colorClasses.darkText}`}>
-          <Icon className="h-5 w-5" />
-        </div>
-        <div>
-          <p className="text-xs font-medium text-gray-500 dark:text-gray-400">
-            {title}
-          </p>
-          <p className="text-xl font-bold text-gray-900 dark:text-white leading-tight">
-            {value}
-          </p>
-        </div>
-      </div>
-    </motion.div>
   );
 };
