@@ -7,7 +7,7 @@ class ImageService {
   private baseUrl = API_CONFIG.image;
 
   async upload(imageId: string, file: File): Promise<ImageResponse> {
-    console.log('📤 Iniciando upload de imagen:', { 
+    console.log('Iniciando upload de imagen:', { 
       imageId, 
       fileName: file.name, 
       fileSize: file.size,
@@ -20,7 +20,7 @@ class ImageService {
     formData.append('file', file);
 
     // Verificar FormData
-    console.log('📦 FormData contenido:');
+    console.log('FormData contenido:');
     for (let pair of formData.entries()) {
       console.log('  -', pair[0], ':', pair[1] instanceof File ? `File: ${pair[1].name} (${pair[1].size} bytes)` : pair[1]);
     }
@@ -31,33 +31,33 @@ class ImageService {
         body: formData
       });
 
-      console.log('📥 Response status:', response.status);
-      console.log('📥 Response headers:', Object.fromEntries(response.headers.entries()));
+      console.log('Response status:', response.status);
+      console.log('Response headers:', Object.fromEntries(response.headers.entries()));
       
       if (!response.ok) {
         const errorText = await response.text();
-        console.error('❌ Error response body:', errorText);
+        console.error('Error response body:', errorText);
         throw new Error(`Error al subir imagen: ${response.status} - ${errorText}`);
       }
 
       const data = await response.json();
-      console.log('✅ Imagen subida exitosamente:', data);
+      console.log('Imagen subida exitosamente:', data);
       return data;
     } catch (error) {
-      console.error('❌ Error en upload:', error);
+      console.error('Error en upload:', error);
       throw error;
     }
   }
 
   async getMetadata(imageId: string): Promise<ImageResponse> {
-    console.log('🔍 Obteniendo metadata:', imageId);
+    console.log('Obteniendo metadata:', imageId);
     const response = await authFetch(`${this.baseUrl}/api/images/${imageId}`);
     if (!response.ok) throw new Error('Imagen no encontrada');
     return response.json();
   }
 
   async download(imageId: string): Promise<Blob> {
-    console.log('📥 Descargando imagen:', imageId);
+    console.log('Descargando imagen:', imageId);
     const response = await authFetch(`${this.baseUrl}/api/images/download/${imageId}`);
     if (!response.ok) throw new Error('Error al descargar imagen');
     return response.blob();
@@ -69,7 +69,7 @@ class ImageService {
 
   async exists(imageId: string): Promise<boolean> {
     try {
-      console.log('🔍 Verificando existencia:', imageId);
+      console.log('Verificando existencia:', imageId);
       const response = await authFetch(`${this.baseUrl}/api/images/${imageId}/exists`);
       if (!response.ok) return false;
       const data = await response.json();
@@ -80,7 +80,7 @@ class ImageService {
   }
 
   async delete(imageId: string): Promise<void> {
-    console.log('🗑️ Eliminando imagen:', imageId);
+    console.log('Eliminando imagen:', imageId);
     const response = await authFetch(`${this.baseUrl}/api/images/${imageId}`, {
       method: 'DELETE'
     });

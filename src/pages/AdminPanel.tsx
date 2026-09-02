@@ -10,7 +10,7 @@ import { useAuth } from '../context/AuthContext';
 import type { Usuario, RegisterRequest } from '../types';
 
 export const AdminPanel: React.FC = () => {
-  const { user } = useAuth();  // ✅ OBTENER USUARIO DEL CONTEXTO
+  const { user } = useAuth();
   const navigate = useNavigate();
   const [users, setUsers] = useState<Usuario[]>([]);
   const [isLoading, setIsLoading] = useState(true);

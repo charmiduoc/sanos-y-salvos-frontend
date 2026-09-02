@@ -40,7 +40,7 @@ export const MapPage: React.FC = () => {
         </motion.div>
 
         <div className="rounded-3xl bg-white dark:bg-gray-800 shadow-md overflow-hidden">
-          {/* ✅ CORREGIDO: filterByUser={false} para mostrar TODAS las ubicaciones */}
+          {}
           <UiMap 
             currentUserId={currentUserId}
             filterByUser={false}  // ← CAMBIADO

@@ -38,10 +38,9 @@ export const Login: React.FC = () => {
     try {
       const user = await userService.login({ email, password, rememberMe });
       
-      console.log('✅ Login exitoso - Usuario:', user);
-      console.log('✅ Token:', user.token);
+      console.log('Login exitoso - Usuario:', user);
+      console.log('Token:', user.token);
       
-      // ✅ Guardar usuario en el contexto (esto llama a setStoredUser)
       login(user);
       
       toast.success(`Bienvenido, ${user.name}!`);

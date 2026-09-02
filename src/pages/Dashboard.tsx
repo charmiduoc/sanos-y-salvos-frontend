@@ -13,7 +13,6 @@ import userService from '../service/user.service';
 import type { Mascota } from '../types';
 
 export const Dashboard: React.FC = () => {
-  // ✅ Obtener usuario del contexto
   const { user, logout } = useAuth();
   const currentUserId = user?.id;
 
@@ -322,7 +321,7 @@ export const Dashboard: React.FC = () => {
                 )}
               </motion.div>
 
-              {/* Map Section - ✅ CORREGIDO PARA MOSTRAR TODAS LAS UBICACIONES */}
+              {/* Map Section */}
               <motion.div 
                 initial={{ opacity: 0, x: -20 }}
                 animate={{ opacity: 1, x: 0 }}
@@ -342,7 +341,7 @@ export const Dashboard: React.FC = () => {
                 </div>
                 <UiMap 
                   currentUserId={currentUserId}
-                  filterByUser={false}  // ✅ CAMBIADO: mostrar TODAS las ubicaciones
+                  filterByUser={false}
                 />
               </motion.div>
             </div>

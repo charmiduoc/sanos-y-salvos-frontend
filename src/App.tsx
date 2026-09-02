@@ -83,7 +83,7 @@ function App() {
 
         {/* Redirecciones */}
         <Route path="/" element={<Navigate to="/dashboard" />} />
-        <Route path="/unauthorized" element={<div className="p-8 text-center text-2xl">🚫 No autorizado</div>} />
+        <Route path="/unauthorized" element={<div className="p-8 text-center text-2xl">No autorizado</div>} />
         <Route path="*" element={<Navigate to="/dashboard" />} />
       </Routes>
     </AuthProvider>

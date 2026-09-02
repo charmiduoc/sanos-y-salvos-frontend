@@ -22,18 +22,14 @@ export const getStoredUser = (): Usuario | null => {
       return null;
     }
     
-    console.log('✅ Usuario recuperado de localStorage:', user.email);
+    console.log('Usuario recuperado de localStorage:', user.email);
     return user;
   } catch (error) {
-    console.error('❌ Error al parsear usuario:', error);
+    console.error('Error al parsear usuario:', error);
     clearStoredUser();
     return null;
   }
 };
-
-/**
- * Almacena el usuario en localStorage.
- */
 export const setStoredUser = (user: Usuario): void => {
   // Asegurar que el token esté presente
   if (!user.token && user.accessToken) {
@@ -45,7 +41,7 @@ export const setStoredUser = (user: Usuario): void => {
   }
   
   localStorage.setItem(STORAGE_KEY, JSON.stringify(user));
-  console.log('✅ Usuario guardado en localStorage:', user.email);
+  console.log('Usuario guardado en localStorage:', user.email);
 };
 
 /**
@@ -55,7 +51,7 @@ export const clearStoredUser = (): void => {
   localStorage.removeItem(STORAGE_KEY);
   localStorage.removeItem(TOKEN_REFRESH_KEY);
   sessionStorage.removeItem(STORAGE_KEY);
-  console.log('🗑️ Datos de usuario eliminados');
+  console.log('Datos de usuario eliminados');
 };
 
 /**
@@ -65,7 +61,7 @@ export const getToken = (): string | null => {
   const user = getStoredUser();
   if (!user) return null;
   const token = user.token ?? user.accessToken ?? null;
-  console.log('🔑 Token obtenido:', token ? `✅ ${token.substring(0, 20)}...` : '❌ No existe');
+  console.log('Token obtenido:', token ? ` ${token.substring(0, 20)}...` : '❌ No existe');
   return token;
 };
 
@@ -82,7 +78,7 @@ export const getRefreshToken = (): string | null => {
 export const refreshToken = async (): Promise<Usuario | null> => {
   const refresh = getRefreshToken();
   if (!refresh) {
-    console.log('❌ No hay refresh token disponible');
+    console.log('No hay refresh token disponible');
     return null;
   }
 
@@ -95,13 +91,13 @@ export const refreshToken = async (): Promise<Usuario | null> => {
     });
 
     if (!response.ok) {
-      console.error('❌ Error al refrescar token:', response.status);
+      console.error('Error al refrescar token:', response.status);
       clearStoredUser();
       return null;
     }
 
     const data = await response.json();
-    console.log('✅ Token refrescado exitosamente');
+    console.log('Token refrescado exitosamente');
     
     const user = getStoredUser();
     
@@ -123,16 +119,11 @@ export const refreshToken = async (): Promise<Usuario | null> => {
     
     return null;
   } catch (error) {
-    console.error('❌ Error refrescando token:', error);
+    console.error('Error refrescando token:', error);
     clearStoredUser();
     return null;
   }
 };
-
-/**
- * Crea los headers con el token JWT.
- * ✅ CORREGIDO: No fuerza Content-Type para FormData
- */
 const mergeHeaders = (headers?: HeadersInit, isFormData: boolean = false): Headers => {
   const finalHeaders = new Headers(headers);
   const token = getToken();
@@ -140,25 +131,22 @@ const mergeHeaders = (headers?: HeadersInit, isFormData: boolean = false): Heade
   // Agregar Authorization si hay token
   if (token && !finalHeaders.has('Authorization')) {
     finalHeaders.set('Authorization', `Bearer ${token}`);
-    console.log('🔑 Token agregado al header');
+    console.log('Token agregado al header');
   } else if (!token) {
-    console.log('⚠️ No hay token disponible');
+    console.log('No hay token disponible');
   }
   
-  // ✅ CORREGIDO: Solo agregar Content-Type si NO es FormData
   if (!isFormData && !finalHeaders.has('Content-Type')) {
     finalHeaders.set('Content-Type', 'application/json');
-    console.log('📝 Content-Type: application/json');
+    console.log('Content-Type: application/json');
   } else if (isFormData) {
-    // ⚠️ IMPORTANTE: NO establecer Content-Type para FormData
-    // El navegador lo establecerá automáticamente con el boundary
-    console.log('📦 FormData detectado, NO se establece Content-Type');
+    console.log('FormData detectado, NO se establece Content-Type');
     // Eliminar Content-Type si existe
     finalHeaders.delete('Content-Type');
   }
   
   const headersObj = Object.fromEntries(finalHeaders.entries());
-  console.log('📋 Headers finales:', {
+  console.log('Headers finales:', {
     ...headersObj,
     Authorization: headersObj.Authorization ? 'Bearer ***' : 'No'
   });
@@ -166,18 +154,13 @@ const mergeHeaders = (headers?: HeadersInit, isFormData: boolean = false): Heade
   return finalHeaders;
 };
 
-/**
- * Fetch con autenticación automática y manejo de token expirado.
- * ✅ CORREGIDO: Detecta FormData automáticamente
- */
 export const authFetch = async (input: RequestInfo, init: RequestInit = {}): Promise<Response> => {
   try {
-    // ✅ Detectar si el body es FormData
     const isFormData = init.body instanceof FormData;
     
-    console.log('🌐 authFetch - URL:', input);
-    console.log('📦 isFormData:', isFormData);
-    console.log('📦 Método:', init.method || 'GET');
+    console.log('authFetch - URL:', input);
+    console.log('isFormData:', isFormData);
+    console.log('Método:', init.method || 'GET');
     
     let response = await fetch(input, {
       ...init,
@@ -186,17 +169,17 @@ export const authFetch = async (input: RequestInfo, init: RequestInit = {}): Pro
 
     // Si el token expiró, intentar refrescar
     if (response.status === 401) {
-      console.log('⚠️ Token expirado (401), intentando refrescar...');
+      console.log('Token expirado (401), intentando refrescar...');
       const newUser = await refreshToken();
       
       if (newUser) {
-        console.log('✅ Token refrescado, reintentando petición...');
+        console.log('Token refrescado, reintentando petición...');
         response = await fetch(input, {
           ...init,
           headers: mergeHeaders(init.headers, isFormData)
         });
       } else {
-        console.log('❌ No se pudo refrescar el token, redirigiendo a login');
+        console.log('No se pudo refrescar el token, redirigiendo a login');
         clearStoredUser();
         if (typeof window !== 'undefined') {
           window.location.href = '/login';
@@ -206,7 +189,7 @@ export const authFetch = async (input: RequestInfo, init: RequestInit = {}): Pro
 
     return response;
   } catch (error) {
-    console.error('❌ Error en authFetch:', error);
+    console.error('Error en authFetch:', error);
     throw error;
   }
 };

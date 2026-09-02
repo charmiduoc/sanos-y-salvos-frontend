@@ -31,7 +31,7 @@ class GeoService {
       const response = await authFetch(`${this.baseUrl}/api/geolocalizacion/reporte/${petId}`);
       
       if (response.status === 404) {
-        console.log(`ℹ️ No se encontraron ubicaciones para petId: ${petId}`);
+        console.log(`No se encontraron ubicaciones para petId: ${petId}`);
         return [];
       }
       
@@ -72,7 +72,7 @@ class GeoService {
       console.log(`Total de mascotas del usuario: ${allPets.length}`);
       
       if (allPets.length === 0) {
-        console.log('ℹ️ El usuario no tiene mascotas');
+        console.log('El usuario no tiene mascotas');
         return [];
       }
       
@@ -105,13 +105,13 @@ class GeoService {
       console.log(`Total de ubicaciones en sistema: ${todasUbicaciones.length}`);
       
       if (todasUbicaciones.length === 0) {
-        console.log('ℹ️ No hay ubicaciones en el sistema');
+        console.log('No hay ubicaciones en el sistema');
         return [];
       }
       
       const petsResponse = await authFetch(`${API_CONFIG.pet}/api/mascotas`);
       if (!petsResponse.ok) {
-        console.error('❌ Error al obtener mascotas');
+        console.error('Error al obtener mascotas');
         return [];
       }
       
@@ -163,7 +163,7 @@ class GeoService {
   }
 
   async create(ubicacion: any): Promise<Ubicacion> {
-    console.log('📝 Creando ubicación:', ubicacion);
+    console.log('Creando ubicación:', ubicacion);
     try {
       const response = await authFetch(`${this.baseUrl}/api/geolocalizacion`, {
         method: 'POST',
@@ -181,14 +181,14 @@ class GeoService {
       
       if (!response.ok) {
         const errorText = await response.text();
-        console.error('❌ Error al crear ubicación:', errorText);
+        console.error('Error al crear ubicación:', errorText);
         throw new Error(`Error al crear ubicación: ${response.status}`);
       }
       const data = await response.json();
-      console.log('✅ Ubicación creada:', data);
+      console.log('Ubicación creada:', data);
       return data;
     } catch (error) {
-      console.error('❌ Error en create:', error);
+      console.error('Error en create:', error);
       throw error;
     }
   }

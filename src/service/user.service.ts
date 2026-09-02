@@ -71,7 +71,7 @@ class UserService {
   }
 
   async login(credentials: { email: string; password: string; rememberMe?: boolean }): Promise<Usuario> {
-    console.log('🔐 Intentando login con:', credentials.email);
+    console.log('Intentando login con:', credentials.email);
     
     const response = await fetch(`${this.baseUrl}/api/auth/login`, {
       method: 'POST',
@@ -84,19 +84,19 @@ class UserService {
     
     if (!response.ok) {
       const body = await response.text();
-      console.error('❌ Error en login:', response.status, body);
+      console.error('Error en login:', response.status, body);
       throw new Error(`Login failed: ${response.status} ${response.statusText}${body ? ` - ${body}` : ''}`);
     }
 
     const data = await response.json();
-    console.log('📡 Respuesta del login:', data);
+    console.log('Respuesta del login:', data);
     
     // Extraer usuario y token
     const user = data.usuario ?? data.user ?? data;
     const token = data.token ?? data.accessToken ?? user.token ?? user.accessToken;
     
     if (!token) {
-      console.error('❌ No se encontró token en la respuesta');
+      console.error('No se encontró token en la respuesta');
       throw new Error('No se pudo obtener el token de autenticación');
     }
     
@@ -107,7 +107,7 @@ class UserService {
       refreshToken: data.refreshToken ?? user.refreshToken
     };
     
-    console.log('✅ Usuario con token:', userWithToken);
+    console.log('Usuario con token:', userWithToken);
     
     // Guardar en localStorage
     setStoredUser(userWithToken);
@@ -121,7 +121,7 @@ class UserService {
   }
 
   async getMyPets(userId: string): Promise<any[]> {
-    console.log('🔍 getMyPets - Buscando mascotas para userId:', userId);
+    console.log('getMyPets - Buscando mascotas para userId:', userId);
     
     try {
       // Intentar obtener mascotas del microservicio de mascotas

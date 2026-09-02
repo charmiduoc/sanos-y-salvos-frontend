@@ -14,7 +14,7 @@ export const Report: React.FC = () => {
   return (
     <div className="pt-[72px] min-h-screen bg-gray-50 dark:bg-gray-900">
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
-        {/* ✅ Botón Volver */}
+        {}
         <button
           onClick={() => navigate('/dashboard')}
           className="inline-flex items-center gap-2 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors mb-6 group"

@@ -62,7 +62,6 @@ export interface LocationWithPet extends Ubicacion {
   ownerId?: string;
 }
 
-// ✅ TIPO PRINCIPAL DE MASCOTA (CON id OBLIGATORIO)
 export interface Mascota {
   id: string;
   name: string;
@@ -84,10 +83,8 @@ export interface Mascota {
   updatedAt?: string;
 }
 
-// ✅ NUEVO: Tipo para CREAR una mascota (SIN id)
 export type CrearMascota = Omit<Mascota, 'id'>;
 
-// ✅ NUEVO: Tipo para ACTUALIZAR (todos opcionales excepto id)
 export type ActualizarMascota = Partial<Omit<Mascota, 'id'>> & { id: string };
 
 export interface PetFormData {

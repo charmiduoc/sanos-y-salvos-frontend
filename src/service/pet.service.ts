@@ -8,16 +8,16 @@ class PetService {
 
   async getAll(): Promise<Mascota[]> {
     try {
-      console.log('📥 Obteniendo todas las mascotas desde:', `${this.baseUrl}/api/mascotas`);
+      console.log('Obteniendo todas las mascotas desde:', `${this.baseUrl}/api/mascotas`);
       const response = await authFetch(`${this.baseUrl}/api/mascotas`);
       const data = await response.json();
-      console.log('📥 Respuesta recibida:', data);
+      console.log('Respuesta recibida:', data);
       
       if (data._embedded?.mascotaList) return data._embedded.mascotaList;
       if (Array.isArray(data)) return data;
       return [];
     } catch (error) {
-      console.error('❌ Error fetching pets:', error);
+      console.error('Error fetching pets:', error);
       return [];
     }
   }
@@ -30,8 +30,8 @@ class PetService {
   }
 
   async create(mascota: CrearMascota): Promise<Mascota> {
-    console.log('📤 Creando mascota en:', `${this.baseUrl}/api/mascotas`);
-    console.log('📤 Datos:', JSON.stringify(mascota, null, 2));
+    console.log('Creando mascota en:', `${this.baseUrl}/api/mascotas`);
+    console.log('Datos:', JSON.stringify(mascota, null, 2));
     
     const response = await authFetch(`${this.baseUrl}/api/mascotas`, {
       method: 'POST',
@@ -41,17 +41,17 @@ class PetService {
     
     if (!response.ok) {
       const errorText = await response.text();
-      console.error('❌ Error al crear mascota:', errorText);
+      console.error('Error al crear mascota:', errorText);
       throw new Error(`Error al crear mascota: ${response.status} - ${errorText}`);
     }
     
     const result = await response.json();
-    console.log('✅ Mascota creada:', result);
+    console.log('Mascota creada:', result);
     return result;
   }
 
   async update(id: string, mascota: ActualizarMascota): Promise<Mascota> {
-    console.log('📤 Actualizando mascota:', id);
+    console.log('Actualizando mascota:', id);
     const response = await authFetch(`${this.baseUrl}/api/mascotas/${id}`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
@@ -65,7 +65,7 @@ class PetService {
   }
 
   async updateStatus(id: string, nuevoEstado: string, founderId?: string): Promise<Mascota> {
-    console.log('📤 Actualizando estado:', id, nuevoEstado);
+    console.log('Actualizando estado:', id, nuevoEstado);
     const url = new URL(`${this.baseUrl}/api/mascotas/${id}/status`);
     url.searchParams.append('nuevoEstado', nuevoEstado);
     if (founderId) url.searchParams.append('founderId', founderId);
@@ -78,7 +78,7 @@ class PetService {
   }
 
   async delete(id: string): Promise<boolean> {
-    console.log('🗑️ Eliminando mascota:', id);
+    console.log('Eliminando mascota:', id);
     const response = await authFetch(`${this.baseUrl}/api/mascotas/${id}`, {
       method: 'DELETE'
     });
