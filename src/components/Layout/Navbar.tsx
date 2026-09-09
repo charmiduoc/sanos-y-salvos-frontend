@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Sun, Moon, Home, Map, GitCompare, AlertTriangle, ShieldCheck, Users, PawPrint, LayoutDashboard } from 'lucide-react';
+import { Sun, Moon, Home, Map, GitCompare, AlertTriangle, ShieldCheck, Users, PawPrint } from 'lucide-react';
 import { Link, useLocation } from 'react-router-dom';
 import { UiNotificationBell } from '../UiNotificationBell';
 import type { Usuario } from '../../types';
@@ -14,19 +14,16 @@ interface NavbarProps {
 
 export const Navbar: React.FC<NavbarProps> = ({ currentUser, onLogin, onRegister, onLogout }) => {
   const [isDark, setIsDark] = useState(() => {
-    // Verificar localStorage al cargar
     const savedTheme = localStorage.getItem('theme');
     if (savedTheme) {
       return savedTheme === 'dark';
     }
-    // Si no hay preferencia guardada, usar la del sistema
     return window.matchMedia('(prefers-color-scheme: dark)').matches;
   });
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const location = useLocation();
 
   useEffect(() => {
-    // Aplicar el tema al cargar
     if (isDark) {
       document.documentElement.classList.add('dark');
       localStorage.setItem('theme', 'dark');
@@ -41,8 +38,7 @@ export const Navbar: React.FC<NavbarProps> = ({ currentUser, onLogin, onRegister
   };
 
   const navLinks = [
-    { path: '/', label: 'Inicio', icon: Home },
-    { path: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
+    { path: '/dashboard', label: 'Inicio', icon: Home },
     { path: '/community', label: 'Comunidad', icon: Users },
     { path: '/map', label: 'Mapa', icon: Map },
     { path: '/matches', label: 'Coincidencias', icon: GitCompare },
@@ -50,7 +46,13 @@ export const Navbar: React.FC<NavbarProps> = ({ currentUser, onLogin, onRegister
     ...(currentUser?.role && /admin/i.test(currentUser.role) ? [{ path: '/admin', label: 'Admin', icon: ShieldCheck }] : []),
   ];
 
-  const isActive = (path: string) => location.pathname === path;
+  const isActive = (path: string) => {
+    // Para la ruta de inicio, marcar como activo también cuando esté en la raíz
+    if (path === '/dashboard' && location.pathname === '/') {
+      return true;
+    }
+    return location.pathname === path;
+  };
 
   return (
     <header className="fixed top-0 left-0 right-0 z-50 transition-shadow duration-300 bg-white/[0.97] dark:bg-gray-800/[0.97] shadow-none border-b border-gray-100 dark:border-gray-700">
