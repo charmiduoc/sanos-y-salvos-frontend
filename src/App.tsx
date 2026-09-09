@@ -5,7 +5,7 @@ import { Toaster } from 'react-hot-toast';
 import { AuthProvider } from './context/AuthContext';
 import { AuthGuard } from './guards/AuthGuard';
 import { Login } from './components/Auth/Login';
-import { RegisterModal } from './components/Auth/RegisterModal';
+import { Register } from './pages/Register';
 import { Dashboard } from './pages/Dashboard';
 import { AdminPanel } from './pages/AdminPanel';
 import { MapPage } from './pages/MapPage';
@@ -22,10 +22,7 @@ function App() {
       <Routes>
         {/* Rutas públicas */}
         <Route path="/login" element={<Login />} />
-        <Route
-          path="/register"
-          element={<RegisterModal onClose={() => {}} onRegister={() => {}} isLoading={false} />}
-        />
+        <Route path="/register" element={<Register />} />
 
         {/* Rutas protegidas - cualquier usuario autenticado */}
         <Route
