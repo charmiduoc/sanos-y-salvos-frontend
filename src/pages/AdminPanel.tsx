@@ -1,8 +1,8 @@
 // src/pages/AdminPanel.tsx
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { 
-  Users, UserPlus, Shield, Trash2, Edit, Search, Loader2, 
+import {
+  Users, UserPlus, Shield, Trash2, Edit, Search, Loader2,
   ArrowLeft, PawPrint, Eye, Save, X, CheckCircle
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
@@ -75,7 +75,7 @@ export const AdminPanel: React.FC = () => {
 
   const handleDelete = async (userId: string) => {
     if (!confirm('Estas seguro de eliminar este usuario?')) return;
-    
+
     try {
       setIsDeleting(userId);
       await userService.delete(userId);
@@ -91,7 +91,7 @@ export const AdminPanel: React.FC = () => {
 
   const handleDeletePet = async (petId: string) => {
     if (!confirm('Estas seguro de eliminar esta mascota?')) return;
-    
+
     try {
       setIsDeletingPet(petId);
       await petService.delete(petId);
@@ -107,7 +107,7 @@ export const AdminPanel: React.FC = () => {
 
   const handleUpdateUser = async (userData: Partial<Usuario>) => {
     if (!editingUser) return;
-    
+
     try {
       await userService.update(editingUser.id, userData);
       toast.success('Usuario actualizado exitosamente');
@@ -119,16 +119,33 @@ export const AdminPanel: React.FC = () => {
     }
   };
 
+  // ACTUALIZADO: Conserva imagen, ubicación y demás campos al editar
   const handleUpdatePet = async (petData: Partial<Mascota>) => {
     if (!editingPet) return;
-    
+
     try {
-      // Crear el objeto con el formato que espera ActualizarMascota
-      const updateData: ActualizarMascota = {
+      const statusChanged = petData.status && petData.status !== editingPet.status;
+
+      // 1. Si cambió el status → updateStatus (dispara CloudAMQP)
+      if (statusChanged && petData.status) {
+        await petService.updateStatus(editingPet.id, petData.status, user?.id || 'admin');
+      }
+
+      // 2. Actualizar el resto de campos con update()
+      const { status, ...otrosCampos } = petData;
+
+      // ⭐ PRESERVAR los campos que NO están en el formulario
+      const updateData: any = {
         id: editingPet.id,
-        ...petData
+        imageId: editingPet.imageId,           // ← Preserva imagen
+        lastLocation: editingPet.lastLocation, // ← Preserva ubicación
+        ownerId: editingPet.ownerId,           // ← Preserva dueño
+        reportedAt: editingPet.reportedAt,     // ← Preserva fecha reporte
+        ...otrosCampos                         // ← Los campos del form
       };
+
       await petService.update(editingPet.id, updateData);
+
       toast.success('Mascota actualizada exitosamente');
       setEditingPet(null);
       loadPets();
@@ -149,12 +166,12 @@ export const AdminPanel: React.FC = () => {
     }
   };
 
-  const filteredUsers = users.filter(function(user) {
+  const filteredUsers = users.filter(function (user) {
     return user.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       user.email?.toLowerCase().includes(searchTerm.toLowerCase());
   });
 
-  const filteredPets = pets.filter(function(pet) {
+  const filteredPets = pets.filter(function (pet) {
     return pet.name?.toLowerCase().includes(searchPetTerm.toLowerCase()) ||
       pet.species?.toLowerCase().includes(searchPetTerm.toLowerCase()) ||
       pet.ownerId?.toLowerCase().includes(searchPetTerm.toLowerCase());
@@ -184,7 +201,7 @@ export const AdminPanel: React.FC = () => {
             Debes iniciar sesion para acceder al panel de administracion.
           </p>
           <button
-            onClick={function() { navigate('/login'); }}
+            onClick={function () { navigate('/login'); }}
             className="mt-6 px-6 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
           >
             Ir a Iniciar Sesion
@@ -206,7 +223,7 @@ export const AdminPanel: React.FC = () => {
             No tienes permisos para acceder al panel de administracion.
           </p>
           <button
-            onClick={function() { navigate('/dashboard'); }}
+            onClick={function () { navigate('/dashboard'); }}
             className="mt-6 px-6 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors"
           >
             Volver al Dashboard
@@ -220,7 +237,7 @@ export const AdminPanel: React.FC = () => {
     <div className="pt-[72px] min-h-screen bg-gray-50 dark:bg-gray-900">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <button
-          onClick={function() { navigate('/dashboard'); }}
+          onClick={function () { navigate('/dashboard'); }}
           className="inline-flex items-center gap-2 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors mb-6 group"
         >
           <ArrowLeft size={18} className="group-hover:-translate-x-1 transition-transform" />
@@ -243,7 +260,7 @@ export const AdminPanel: React.FC = () => {
             </div>
             <div className="flex gap-2">
               <button
-                onClick={function() { setShowRegisterModal(true); }}
+                onClick={function () { setShowRegisterModal(true); }}
                 className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
               >
                 <UserPlus className="h-4 w-4" />
@@ -269,7 +286,7 @@ export const AdminPanel: React.FC = () => {
               <div>
                 <p className="text-sm text-gray-500 dark:text-gray-400">Administradores</p>
                 <p className="text-2xl font-bold text-gray-900 dark:text-white">
-                  {users.filter(function(u) { return u.role === 'ROLE_ADMIN'; }).length}
+                  {users.filter(function (u) { return u.role === 'ROLE_ADMIN'; }).length}
                 </p>
               </div>
             </div>
@@ -280,7 +297,7 @@ export const AdminPanel: React.FC = () => {
               <div>
                 <p className="text-sm text-gray-500 dark:text-gray-400">Usuarios Activos</p>
                 <p className="text-2xl font-bold text-gray-900 dark:text-white">
-                  {users.filter(function(u) { return u.active; }).length}
+                  {users.filter(function (u) { return u.active; }).length}
                 </p>
               </div>
             </div>
@@ -298,7 +315,7 @@ export const AdminPanel: React.FC = () => {
 
         <div className="flex gap-2 mb-6 border-b border-gray-200 dark:border-gray-700">
           <button
-            onClick={function() { setActiveTab('usuarios'); }}
+            onClick={function () { setActiveTab('usuarios'); }}
             className={'px-4 py-2 font-medium transition-colors ' + (
               activeTab === 'usuarios'
                 ? 'text-blue-600 border-b-2 border-blue-600 dark:text-blue-400 dark:border-blue-400'
@@ -309,7 +326,7 @@ export const AdminPanel: React.FC = () => {
             Usuarios
           </button>
           <button
-            onClick={function() { setActiveTab('mascotas'); }}
+            onClick={function () { setActiveTab('mascotas'); }}
             className={'px-4 py-2 font-medium transition-colors ' + (
               activeTab === 'mascotas'
                 ? 'text-blue-600 border-b-2 border-blue-600 dark:text-blue-400 dark:border-blue-400'
@@ -330,7 +347,7 @@ export const AdminPanel: React.FC = () => {
                   type="text"
                   placeholder="Buscar usuario por nombre o email..."
                   value={searchTerm}
-                  onChange={function(e) { setSearchTerm(e.target.value); }}
+                  onChange={function (e) { setSearchTerm(e.target.value); }}
                   className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500"
                 />
               </div>
@@ -371,7 +388,7 @@ export const AdminPanel: React.FC = () => {
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
-                      {filteredUsers.map(function(user) {
+                      {filteredUsers.map(function (user) {
                         return (
                           <motion.tr
                             key={user.id}
@@ -406,7 +423,7 @@ export const AdminPanel: React.FC = () => {
                             </td>
                             <td className="px-6 py-4 whitespace-nowrap">
                               <button
-                                onClick={function() { handleToggleStatus(user.id, user.active); }}
+                                onClick={function () { handleToggleStatus(user.id, user.active); }}
                                 className={'px-2 py-1 text-xs font-medium rounded-full transition-colors ' + (
                                   user.active
                                     ? 'bg-green-100 text-green-700 hover:bg-green-200 dark:bg-green-900/30 dark:text-green-400'
@@ -419,13 +436,13 @@ export const AdminPanel: React.FC = () => {
                             <td className="px-6 py-4 whitespace-nowrap text-right">
                               <div className="flex items-center justify-end gap-2">
                                 <button
-                                  onClick={function() { setEditingUser(user); }}
+                                  onClick={function () { setEditingUser(user); }}
                                   className="p-1.5 text-blue-600 hover:bg-blue-100 dark:hover:bg-blue-900/30 rounded-lg transition-colors"
                                 >
                                   <Edit className="h-4 w-4" />
                                 </button>
                                 <button
-                                  onClick={function() { handleDelete(user.id); }}
+                                  onClick={function () { handleDelete(user.id); }}
                                   disabled={isDeleting === user.id}
                                   className="p-1.5 text-red-600 hover:bg-red-100 dark:hover:bg-red-900/30 rounded-lg transition-colors disabled:opacity-50"
                                 >
@@ -457,7 +474,7 @@ export const AdminPanel: React.FC = () => {
                   type="text"
                   placeholder="Buscar mascota por nombre, especie o dueno..."
                   value={searchPetTerm}
-                  onChange={function(e) { setSearchPetTerm(e.target.value); }}
+                  onChange={function (e) { setSearchPetTerm(e.target.value); }}
                   className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500"
                 />
               </div>
@@ -498,8 +515,8 @@ export const AdminPanel: React.FC = () => {
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
-                      {filteredPets.map(function(pet) {
-                        const owner = users.find(function(u) { return u.id === pet.ownerId; });
+                      {filteredPets.map(function (pet) {
+                        const owner = users.find(function (u) { return u.id === pet.ownerId; });
                         return (
                           <motion.tr
                             key={pet.id}
@@ -510,11 +527,11 @@ export const AdminPanel: React.FC = () => {
                             <td className="px-6 py-4 whitespace-nowrap">
                               <div className="flex items-center">
                                 {pet.imageId ? (
-                                  <img 
+                                  <img
                                     src={import.meta.env.VITE_API_IMAGE + '/api/images/download/' + pet.imageId}
                                     alt={pet.name}
                                     className="h-8 w-8 rounded-full object-cover"
-                                    onError={function(e) {
+                                    onError={function (e) {
                                       (e.target as HTMLImageElement).style.display = 'none';
                                     }}
                                   />
@@ -543,19 +560,19 @@ export const AdminPanel: React.FC = () => {
                             <td className="px-6 py-4 whitespace-nowrap text-right">
                               <div className="flex items-center justify-end gap-2">
                                 <button
-                                  onClick={function() { setEditingPet(pet); }}
+                                  onClick={function () { setEditingPet(pet); }}
                                   className="p-1.5 text-blue-600 hover:bg-blue-100 dark:hover:bg-blue-900/30 rounded-lg transition-colors"
                                 >
                                   <Edit className="h-4 w-4" />
                                 </button>
                                 <button
-                                  onClick={function() { navigate('/pet/' + pet.id); }}
+                                  onClick={function () { navigate('/pet/' + pet.id); }}
                                   className="p-1.5 text-green-600 hover:bg-green-100 dark:hover:bg-green-900/30 rounded-lg transition-colors"
                                 >
                                   <Eye className="h-4 w-4" />
                                 </button>
                                 <button
-                                  onClick={function() { handleDeletePet(pet.id); }}
+                                  onClick={function () { handleDeletePet(pet.id); }}
                                   disabled={isDeletingPet === pet.id}
                                   className="p-1.5 text-red-600 hover:bg-red-100 dark:hover:bg-red-900/30 rounded-lg transition-colors disabled:opacity-50"
                                 >
@@ -588,14 +605,14 @@ export const AdminPanel: React.FC = () => {
                 Editar Usuario
               </h3>
               <button
-                onClick={function() { setEditingUser(null); }}
+                onClick={function () { setEditingUser(null); }}
                 className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300"
               >
                 <X className="h-5 w-5" />
               </button>
             </div>
 
-            <form onSubmit={function(e) {
+            <form onSubmit={function (e) {
               e.preventDefault();
               const form = e.target as HTMLFormElement;
               const formData = new FormData(form);
@@ -605,12 +622,12 @@ export const AdminPanel: React.FC = () => {
                 phone: formData.get('phone') as string,
                 role: formData.get('role') as 'ROLE_USER' | 'ROLE_ADMIN',
               };
-              
+
               const password = formData.get('password') as string;
               if (password && password.trim() !== '') {
                 updateData.password = password;
               }
-              
+
               handleUpdateUser(updateData);
             }}>
               <div className="space-y-4">
@@ -676,7 +693,7 @@ export const AdminPanel: React.FC = () => {
               <div className="flex gap-3 mt-6">
                 <button
                   type="button"
-                  onClick={function() { setEditingUser(null); }}
+                  onClick={function () { setEditingUser(null); }}
                   className="flex-1 px-4 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
                 >
                   Cancelar
@@ -703,14 +720,14 @@ export const AdminPanel: React.FC = () => {
                 Editar Mascota
               </h3>
               <button
-                onClick={function() { setEditingPet(null); }}
+                onClick={function () { setEditingPet(null); }}
                 className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300"
               >
                 <X className="h-5 w-5" />
               </button>
             </div>
 
-            <form onSubmit={function(e) {
+            <form onSubmit={function (e) {
               e.preventDefault();
               const form = e.target as HTMLFormElement;
               const formData = new FormData(form);
@@ -723,7 +740,7 @@ export const AdminPanel: React.FC = () => {
                 description: formData.get('description') as string,
                 status: formData.get('status') as 'LOST' | 'FOUND' | 'REUNITED',
               };
-              
+
               handleUpdatePet(updateData);
             }}>
               <div className="space-y-4">
@@ -816,7 +833,7 @@ export const AdminPanel: React.FC = () => {
               <div className="flex gap-3 mt-6">
                 <button
                   type="button"
-                  onClick={function() { setEditingPet(null); }}
+                  onClick={function () { setEditingPet(null); }}
                   className="flex-1 px-4 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
                 >
                   Cancelar
@@ -836,7 +853,7 @@ export const AdminPanel: React.FC = () => {
 
       {showRegisterModal && (
         <AdminRegisterModal
-          onClose={function() { setShowRegisterModal(false); }}
+          onClose={function () { setShowRegisterModal(false); }}
           onRegister={handleRegister}
         />
       )}
