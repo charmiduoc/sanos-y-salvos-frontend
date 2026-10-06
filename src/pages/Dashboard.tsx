@@ -29,11 +29,10 @@ export const Dashboard: React.FC = () => {
   const loadData = async () => {
     try {
       setIsLoading(true);
-      
       console.log('Dashboard - currentUserId:', currentUserId);
-      
+
       let pets: Mascota[] = [];
-      
+
       if (currentUserId) {
         console.log('Cargando mascotas del usuario:', currentUserId);
         const userPets = await userService.getMyPets(currentUserId);
@@ -45,7 +44,7 @@ export const Dashboard: React.FC = () => {
         console.log('Todas las mascotas encontradas:', allPets.length);
         pets = allPets;
       }
-      
+
       setMascotas(pets);
     } catch (error) {
       console.error('Error loading pets:', error);
@@ -67,6 +66,15 @@ export const Dashboard: React.FC = () => {
     }
   };
 
+  // NUEVO: callback para actualizar el estado en la lista
+  const handleStatusChange = (petId: string, nuevoEstado: string) => {
+    setMascotas(prev =>
+      prev.map(pet =>
+        pet.id === petId ? { ...pet, status: nuevoEstado as Mascota['status'] } : pet
+      )
+    );
+  };
+
   const stats = {
     total: mascotas.length,
     lost: mascotas.filter(p => p.status === 'LOST').length,
@@ -76,8 +84,8 @@ export const Dashboard: React.FC = () => {
 
   const filteredMascotas = mascotas
     .filter(p => filter === 'all' || p.status === filter)
-    .filter(p => 
-      p.name?.toLowerCase().includes(searchTerm.toLowerCase()) || 
+    .filter(p =>
+      p.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       (p.description && p.description.toLowerCase().includes(searchTerm.toLowerCase()))
     );
 
@@ -97,7 +105,7 @@ export const Dashboard: React.FC = () => {
   };
 
   const StatCard = ({ title, value, icon: Icon, color }: { title: string; value: number; icon: any; color: string }) => (
-    <motion.div 
+    <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       className="bg-white dark:bg-gray-800 rounded-xl shadow-md p-6 transition-all duration-300 hover:shadow-lg hover:-translate-y-1"
@@ -116,7 +124,7 @@ export const Dashboard: React.FC = () => {
 
   return (
     <>
-      <Navbar 
+      <Navbar
         currentUser={user}
         onLogin={() => navigate('/login')}
         onRegister={() => navigate('/register')}
@@ -125,11 +133,11 @@ export const Dashboard: React.FC = () => {
           navigate('/login');
         }}
       />
-      
+
       <div className="pt-[72px] min-h-screen bg-gray-50 dark:bg-gray-900">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
           {/* Header */}
-          <motion.div 
+          <motion.div
             initial={{ opacity: 0, y: -20 }}
             animate={{ opacity: 1, y: 0 }}
             className="mb-8"
@@ -142,34 +150,14 @@ export const Dashboard: React.FC = () => {
 
           {/* Stats Grid */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-            <StatCard 
-              title="Total Reportes" 
-              value={stats.total} 
-              icon={PawPrint} 
-              color="blue"
-            />
-            <StatCard 
-              title="Perdidas" 
-              value={stats.lost} 
-              icon={AlertTriangle} 
-              color="red"
-            />
-            <StatCard 
-              title="Encontradas" 
-              value={stats.found} 
-              icon={MapPin} 
-              color="green"
-            />
-            <StatCard 
-              title="Reunidas" 
-              value={stats.reunited} 
-              icon={Heart} 
-              color="purple"
-            />
+            <StatCard title="Total Reportes" value={stats.total} icon={PawPrint} color="blue" />
+            <StatCard title="Perdidas" value={stats.lost} icon={AlertTriangle} color="red" />
+            <StatCard title="Encontradas" value={stats.found} icon={MapPin} color="green" />
+            <StatCard title="Reunidas" value={stats.reunited} icon={Heart} color="purple" />
           </div>
 
           {/* Filters */}
-          <motion.div 
+          <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ delay: 0.1 }}
@@ -191,7 +179,7 @@ export const Dashboard: React.FC = () => {
                   </button>
                 ))}
               </div>
-              
+
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
                 <input
@@ -207,9 +195,8 @@ export const Dashboard: React.FC = () => {
 
           {/* Main Content */}
           <div className="grid lg:grid-cols-3 gap-8">
-            {/* Left Column - List and Map */}
+            {/* Left Column */}
             <div className="lg:col-span-2 space-y-6">
-              {/* Pets Grid */}
               <motion.div
                 initial={{ opacity: 0, x: -20 }}
                 animate={{ opacity: 1, x: 0 }}
@@ -223,20 +210,12 @@ export const Dashboard: React.FC = () => {
                     <p className="text-sm text-gray-500 dark:text-gray-400">
                       {filteredMascotas.length} {
                         filter === 'all'
-                          ? filteredMascotas.length === 1
-                            ? 'reporte encontrado'
-                            : 'reportes encontrados'
+                          ? filteredMascotas.length === 1 ? 'reporte encontrado' : 'reportes encontrados'
                           : filter === 'LOST'
-                            ? filteredMascotas.length === 1
-                              ? 'mascota perdida'
-                              : 'mascotas perdidas'
+                            ? filteredMascotas.length === 1 ? 'mascota perdida' : 'mascotas perdidas'
                             : filter === 'FOUND'
-                              ? filteredMascotas.length === 1
-                                ? 'mascota encontrada'
-                                : 'mascotas encontradas'
-                              : filteredMascotas.length === 1
-                                ? 'mascota reunida'
-                                : 'mascotas reunidas'
+                              ? filteredMascotas.length === 1 ? 'mascota encontrada' : 'mascotas encontradas'
+                              : filteredMascotas.length === 1 ? 'mascota reunida' : 'mascotas reunidas'
                       }
                     </p>
                   </div>
@@ -249,7 +228,7 @@ export const Dashboard: React.FC = () => {
                     </button>
                   )}
                 </div>
-                
+
                 {isLoading ? (
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     {[...Array(4)].map((_, i) => (
@@ -270,8 +249,8 @@ export const Dashboard: React.FC = () => {
                   <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md p-12 text-center">
                     <PawPrint className="h-12 w-12 text-gray-400 mx-auto mb-4" />
                     <p className="text-gray-500 dark:text-gray-400">
-                      {currentUserId 
-                        ? 'No has reportado ninguna mascota aún. ¡Crea tu primer reporte!' 
+                      {currentUserId
+                        ? 'No has reportado ninguna mascota aún. ¡Crea tu primer reporte!'
                         : 'No hay mascotas que coincidan con los filtros'}
                     </p>
                     {currentUserId && (
@@ -294,7 +273,7 @@ export const Dashboard: React.FC = () => {
                   </div>
                 ) : (
                   <AnimatePresence>
-                    <motion.div 
+                    <motion.div
                       initial={{ opacity: 0 }}
                       animate={{ opacity: 1 }}
                       className="grid grid-cols-1 md:grid-cols-2 gap-4"
@@ -307,11 +286,12 @@ export const Dashboard: React.FC = () => {
                           transition={{ delay: index * 0.05 }}
                           exit={{ opacity: 0, y: -20 }}
                         >
-                          <UiReportCard 
-                            report={mascota} 
+                          <UiReportCard
+                            report={mascota}
                             onViewLocation={handleViewLocation}
                             onViewDetails={handleViewDetails}
                             onDelete={handleDeleteReport}
+                            onStatusChange={handleStatusChange}
                             currentUserId={currentUserId}
                           />
                         </motion.div>
@@ -322,7 +302,7 @@ export const Dashboard: React.FC = () => {
               </motion.div>
 
               {/* Map Section */}
-              <motion.div 
+              <motion.div
                 initial={{ opacity: 0, x: -20 }}
                 animate={{ opacity: 1, x: 0 }}
                 transition={{ delay: 0.3 }}
@@ -339,15 +319,12 @@ export const Dashboard: React.FC = () => {
                     </div>
                   </div>
                 </div>
-                <UiMap 
-                  currentUserId={currentUserId}
-                  filterByUser={false}
-                />
+                <UiMap currentUserId={currentUserId} filterByUser={false} />
               </motion.div>
             </div>
 
-            {/* Right Column - Form */}
-            <motion.div 
+            {/* Right Column */}
+            <motion.div
               initial={{ opacity: 0, x: 20 }}
               animate={{ opacity: 1, x: 0 }}
               transition={{ delay: 0.2 }}
@@ -373,8 +350,7 @@ export const Dashboard: React.FC = () => {
                   )}
                 </div>
 
-                {/* Tips Card */}
-                <motion.div 
+                <motion.div
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
                   transition={{ delay: 0.4 }}

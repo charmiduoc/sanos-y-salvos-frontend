@@ -1,6 +1,6 @@
 // src/components/UiReportCard.tsx
 import React, { useState, useEffect } from 'react';
-import { MapPin, Calendar, MessageSquare, Image as ImageIcon, Eye, Trash2, Loader2 } from 'lucide-react';
+import { MapPin, Calendar, MessageSquare, Image as ImageIcon, Eye, Trash2, Loader2, CheckCircle } from 'lucide-react';
 import type { Mascota } from '../types';
 import imageService from '../service/image.service';
 import petService from '../service/pet.service';
@@ -12,6 +12,7 @@ interface Props {
   onViewLocation?: (petId: string) => void;
   onViewDetails?: (petId: string) => void;
   onDelete?: (petId: string) => void;
+  onStatusChange?: (petId: string, nuevoEstado: string) => void;
   currentUserId?: string;
 }
 
@@ -20,12 +21,14 @@ export const UiReportCard: React.FC<Props> = ({
   onViewLocation,
   onViewDetails,
   onDelete,
+  onStatusChange,
   currentUserId
 }) => {
   const [imageUrl, setImageUrl] = useState<string | null>(null);
   const [isLoadingImage, setIsLoadingImage] = useState(false);
   const [imageError, setImageError] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
 
   const isOwner = currentUserId && report.ownerId === currentUserId;
@@ -35,26 +38,14 @@ export const UiReportCard: React.FC<Props> = ({
   }, [report.imageId]);
 
   const loadImage = async () => {
-    if (!report.imageId) {
-      console.log('La mascota no tiene imagen asociada');
-      return;
-    }
-
-    console.log('Cargando imagen con imageId:', report.imageId);
+    if (!report.imageId) return;
     setIsLoadingImage(true);
     setImageError(false);
-    
     try {
       const url = imageService.getImageUrl(report.imageId);
-      console.log('URL generada:', url);
-      
       const exists = await imageService.exists(report.imageId);
-      if (exists) {
-        setImageUrl(url);
-      } else {
-        console.warn('La imagen no existe en el servidor');
-        setImageError(true);
-      }
+      if (exists) setImageUrl(url);
+      else setImageError(true);
     } catch (error) {
       console.error('Error loading image:', error);
       setImageError(true);
@@ -63,56 +54,77 @@ export const UiReportCard: React.FC<Props> = ({
     }
   };
 
+  //NUEVO: Marcar como encontrada (dispara CloudAMQP)
+  const handleMarkAsFound = async () => {
+    if (!report.id) return;
+    try {
+      setIsUpdatingStatus(true);
+      const loadingToast = toast.loading('Marcando como encontrada...');
+
+      await petService.updateStatus(
+        report.id,
+        'FOUND',
+        currentUserId || 'anonimo'
+      );
+
+      toast.dismiss(loadingToast);
+      toast.success('¡Mascota marcada como encontrada!');
+
+      if (onStatusChange) onStatusChange(report.id, 'FOUND');
+    } catch (error) {
+      console.error('Error al marcar como encontrada:', error);
+      toast.error('Error al actualizar el estado');
+    } finally {
+      setIsUpdatingStatus(false);
+    }
+  };
+
+  //NUEVO: Marcar como reunida
+  const handleMarkAsReunited = async () => {
+    if (!report.id) return;
+    try {
+      setIsUpdatingStatus(true);
+      const loadingToast = toast.loading('Marcando como reunida...');
+
+      await petService.updateStatus(report.id, 'REUNITED');
+
+      toast.dismiss(loadingToast);
+      toast.success('¡Mascota marcada como reunida!');
+
+      if (onStatusChange) onStatusChange(report.id, 'REUNITED');
+    } catch (error) {
+      console.error('Error al marcar como reunida:', error);
+      toast.error('Error al actualizar el estado');
+    } finally {
+      setIsUpdatingStatus(false);
+    }
+  };
+
   const handleDelete = async () => {
     if (!report.id) return;
-
-    // Cerrar el modal inmediatamente para evitar parpadeos
     setShowConfirm(false);
-
     try {
       setIsDeleting(true);
-      
-      // Mostrar toast de carga
       const loadingToast = toast.loading('Eliminando reporte...');
-      
-      // 1. Eliminar la ubicación asociada (si existe)
+
       try {
-        console.log('Buscando ubicacion para reportId:', report.id);
         const ubicaciones = await geoService.getAll();
         const ubicacion = ubicaciones.find((u: any) => u.reportId === report.id);
-        
-        if (ubicacion) {
-          console.log('Ubicacion encontrada, eliminando:', ubicacion.id);
-          await geoService.delete(ubicacion.id);
-          console.log('Ubicacion eliminada');
-        }
+        if (ubicacion) await geoService.delete(ubicacion.id);
       } catch (geoError) {
         console.warn('Error al eliminar ubicacion:', geoError);
       }
-      
-      // 2. Eliminar la mascota
+
       const success = await petService.delete(report.id);
-      
-      if (!success) {
-        throw new Error('No se pudo eliminar el reporte');
-      }
-      
-      // 3. Si tiene imagen, eliminarla
+      if (!success) throw new Error('No se pudo eliminar el reporte');
+
       if (report.imageId) {
-        try {
-          await imageService.delete(report.imageId);
-        } catch (imgError) {
-          console.warn('No se pudo eliminar la imagen:', imgError);
-        }
+        try { await imageService.delete(report.imageId); } catch (imgError) {}
       }
-      
-      // Cerrar el toast de carga y mostrar éxito
+
       toast.dismiss(loadingToast);
       toast.success('Reporte eliminado exitosamente');
-      
-      // Llamar al callback de eliminación
       if (onDelete) onDelete(report.id);
-      
     } catch (error) {
       console.error('Error deleting report:', error);
       toast.error('Error al eliminar el reporte');
@@ -158,22 +170,21 @@ export const UiReportCard: React.FC<Props> = ({
         <div className="w-20 h-20 bg-gray-100 dark:bg-gray-700 rounded-lg overflow-hidden flex-shrink-0">
           {isLoadingImage ? (
             <div className="flex items-center justify-center h-full">
-              <Loader2 size={24} className="text-gray-400 dark:text-gray-500 animate-spin" />
+              <Loader2 size={24} className="text-gray-400 animate-spin" />
             </div>
           ) : imageUrl && !imageError ? (
-            <img 
-              src={imageUrl} 
-              alt={report.name} 
+            <img
+              src={imageUrl}
+              alt={report.name}
               className="w-full h-full object-cover"
               onError={() => {
-                console.error('Error al cargar la imagen:', imageUrl);
                 setImageError(true);
                 setImageUrl(null);
               }}
             />
           ) : (
             <div className="flex items-center justify-center h-full">
-              <ImageIcon size={24} className="text-gray-400 dark:text-gray-500" />
+              <ImageIcon size={24} className="text-gray-400" />
             </div>
           )}
         </div>
@@ -211,23 +222,19 @@ export const UiReportCard: React.FC<Props> = ({
             <button
               onClick={(e) => {
                 e.stopPropagation();
-                if (report.id) {
-                  onViewLocation?.(report.id);
-                }
+                if (report.id) onViewLocation?.(report.id);
               }}
               className="flex-1 flex items-center justify-center gap-1.5 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-medium rounded-lg transition-colors"
             >
               <MessageSquare size={14} />
-              Ver avistamientos
+              Avistamientos
             </button>
 
             {onViewDetails && (
               <button
                 onClick={(e) => {
                   e.stopPropagation();
-                  if (report.id) {
-                    onViewDetails?.(report.id);
-                  }
+                  if (report.id) onViewDetails?.(report.id);
                 }}
                 className="flex items-center justify-center gap-1.5 px-3 py-1.5 bg-purple-600 hover:bg-purple-700 text-white text-xs font-medium rounded-lg transition-colors"
               >
@@ -236,6 +243,43 @@ export const UiReportCard: React.FC<Props> = ({
               </button>
             )}
           </div>
+
+          {report.status === 'LOST' && (
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                handleMarkAsFound();
+              }}
+              disabled={isUpdatingStatus}
+              className="mt-2 w-full flex items-center justify-center gap-1.5 px-3 py-2 bg-green-600 hover:bg-green-700 text-white text-xs font-bold rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {isUpdatingStatus ? (
+                <Loader2 size={14} className="animate-spin" />
+              ) : (
+                <CheckCircle size={14} />
+              )}
+              ¡La encontré!
+            </button>
+          )}
+
+          {/* BOTÓN NUEVO: Marcar como reunida (solo dueño) */}
+          {report.status === 'FOUND' && isOwner && (
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                handleMarkAsReunited();
+              }}
+              disabled={isUpdatingStatus}
+              className="mt-2 w-full flex items-center justify-center gap-1.5 px-3 py-2 bg-purple-600 hover:bg-purple-700 text-white text-xs font-bold rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {isUpdatingStatus ? (
+                <Loader2 size={14} className="animate-spin" />
+              ) : (
+                <CheckCircle size={14} />
+              )}
+              Ya está conmigo
+            </button>
+          )}
         </div>
       </div>
 
