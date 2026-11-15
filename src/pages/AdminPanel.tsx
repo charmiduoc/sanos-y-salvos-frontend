@@ -29,7 +29,7 @@ export const AdminPanel: React.FC = () => {
   const [editingPet, setEditingPet] = useState<Mascota | null>(null);
   const [activeTab, setActiveTab] = useState<'usuarios' | 'mascotas'>('usuarios');
   
-  // ⭐ NUEVO: Estado para el monitor de Kafka
+  // Estado para el monitor de Kafka
   const [kafkaMessages, setKafkaMessages] = useState<string[]>([]);
 
   useEffect(() => {
@@ -39,7 +39,7 @@ export const AdminPanel: React.FC = () => {
     }
   }, [user]);
 
-  // ⭐ NUEVO: useEffect para consultar Kafka cada 3 segundos
+  // useEffect para consultar Kafka cada 3 segundos
   useEffect(() => {
     const fetchKafkaMessages = async () => {
       try {
@@ -331,7 +331,7 @@ export const AdminPanel: React.FC = () => {
           </div>
         </div>
 
-        {/* ⭐ NUEVO: Monitor de Kafka en Vivo ⭐ */}
+        {/* Monitor de Kafka en Vivo */}
         <div className="bg-gray-900 text-green-400 p-4 rounded-xl shadow-md mb-8 font-mono text-sm border border-gray-700">
           <div className="flex items-center justify-between mb-2 border-b border-gray-700 pb-2">
             <h3 className="text-white font-bold flex items-center gap-2">
@@ -341,17 +341,35 @@ export const AdminPanel: React.FC = () => {
               </span>
               Apache Kafka Stream (En vivo)
             </h3>
-            <span className="text-xs text-gray-400">Últimos eventos recibidos</span>
+            <span className="text-xs text-gray-400">Ultimos eventos recibidos</span>
           </div>
-          <div className="h-32 overflow-y-auto space-y-1">
+          <div className="h-40 overflow-y-auto space-y-2 p-2">
             {kafkaMessages.length === 0 ? (
               <p className="text-gray-500 italic">Esperando eventos de mascotas encontradas...</p>
             ) : (
-              kafkaMessages.map((msg, index) => (
-                <div key={index} className="border-l-2 border-green-500 pl-2">
-                  {msg}
-                </div>
-              ))
+              kafkaMessages.map((msg, index) => {
+                try {
+                  const jsonStart = msg.indexOf('{');
+                  if (jsonStart !== -1) {
+                    const data = JSON.parse(msg.substring(jsonStart));
+                    if (data.evento === 'MASCOTA_ENCONTRADA') {
+                      return (
+                        <div key={index} className="border-l-2 border-green-500 pl-3 py-1 bg-gray-800/50 rounded-r">
+                          <span className="text-gray-400 text-xs">[{msg.substring(1, 9)}]</span> 
+                          <span className="text-green-300 font-bold ml-2">Mascota Encontrada:</span> 
+                          <span className="text-white"> {data.mascotaId.substring(0,8)}...</span>
+                          <div className="text-xs text-gray-300 mt-1 ml-4">
+                            Avisando a: <span className="text-white font-semibold">{data.dueno}</span> ({data.email})
+                          </div>
+                        </div>
+                      );
+                    }
+                  }
+                } catch (e) {
+                  // Si el mensaje no es JSON, se muestra como texto plano
+                }
+                return <div key={index} className="border-l-2 border-green-500 pl-2 py-1">{msg}</div>;
+              })
             )}
           </div>
         </div>
@@ -834,14 +852,14 @@ export const AdminPanel: React.FC = () => {
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                    Tamaño
+                    Tamano
                   </label>
                   <select
                     name="size"
                     defaultValue={editingPet.size || 'Mediano'}
                     className="w-full p-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
                   >
-                    <option value="Pequeño">Pequeño</option>
+                    <option value="Pequeno">Pequeno</option>
                     <option value="Mediano">Mediano</option>
                     <option value="Grande">Grande</option>
                   </select>
@@ -862,7 +880,7 @@ export const AdminPanel: React.FC = () => {
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                    Descripción
+                    Descripcion
                   </label>
                   <textarea
                     name="description"
