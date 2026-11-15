@@ -28,6 +28,9 @@ export const AdminPanel: React.FC = () => {
   const [editingUser, setEditingUser] = useState<Usuario | null>(null);
   const [editingPet, setEditingPet] = useState<Mascota | null>(null);
   const [activeTab, setActiveTab] = useState<'usuarios' | 'mascotas'>('usuarios');
+  
+  // ⭐ NUEVO: Estado para el monitor de Kafka
+  const [kafkaMessages, setKafkaMessages] = useState<string[]>([]);
 
   useEffect(() => {
     if (user?.role === 'ROLE_ADMIN') {
@@ -35,6 +38,25 @@ export const AdminPanel: React.FC = () => {
       loadPets();
     }
   }, [user]);
+
+  // ⭐ NUEVO: useEffect para consultar Kafka cada 3 segundos
+  useEffect(() => {
+    const fetchKafkaMessages = async () => {
+      try {
+        const response = await fetch(`${import.meta.env.VITE_API_NOTIFICATION || 'https://micronotif.onrender.com'}/api/notificaciones/kafka-monitor`);
+        if (response.ok) {
+          const data = await response.json();
+          setKafkaMessages(data);
+        }
+      } catch (error) {
+        console.error("Error al cargar el stream de Kafka", error);
+      }
+    };
+
+    fetchKafkaMessages();
+    const interval = setInterval(fetchKafkaMessages, 3000);
+    return () => clearInterval(interval);
+  }, []);
 
   const loadUsers = async () => {
     try {
@@ -119,29 +141,25 @@ export const AdminPanel: React.FC = () => {
     }
   };
 
-  // ACTUALIZADO: Conserva imagen, ubicación y demás campos al editar
   const handleUpdatePet = async (petData: Partial<Mascota>) => {
     if (!editingPet) return;
 
     try {
       const statusChanged = petData.status && petData.status !== editingPet.status;
 
-      // 1. Si cambió el status → updateStatus (dispara CloudAMQP)
       if (statusChanged && petData.status) {
         await petService.updateStatus(editingPet.id, petData.status, user?.id || 'admin');
       }
 
-      // 2. Actualizar el resto de campos con update()
       const { status, ...otrosCampos } = petData;
 
-      // ⭐ PRESERVAR los campos que NO están en el formulario
       const updateData: any = {
         id: editingPet.id,
-        imageId: editingPet.imageId,           // ← Preserva imagen
-        lastLocation: editingPet.lastLocation, // ← Preserva ubicación
-        ownerId: editingPet.ownerId,           // ← Preserva dueño
-        reportedAt: editingPet.reportedAt,     // ← Preserva fecha reporte
-        ...otrosCampos                         // ← Los campos del form
+        imageId: editingPet.imageId,
+        lastLocation: editingPet.lastLocation,
+        ownerId: editingPet.ownerId,
+        reportedAt: editingPet.reportedAt,
+        ...otrosCampos
       };
 
       await petService.update(editingPet.id, updateData);
@@ -310,6 +328,31 @@ export const AdminPanel: React.FC = () => {
                 <p className="text-2xl font-bold text-gray-900 dark:text-white">{pets.length}</p>
               </div>
             </div>
+          </div>
+        </div>
+
+        {/* ⭐ NUEVO: Monitor de Kafka en Vivo ⭐ */}
+        <div className="bg-gray-900 text-green-400 p-4 rounded-xl shadow-md mb-8 font-mono text-sm border border-gray-700">
+          <div className="flex items-center justify-between mb-2 border-b border-gray-700 pb-2">
+            <h3 className="text-white font-bold flex items-center gap-2">
+              <span className="relative flex h-3 w-3">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-3 w-3 bg-green-500"></span>
+              </span>
+              Apache Kafka Stream (En vivo)
+            </h3>
+            <span className="text-xs text-gray-400">Últimos eventos recibidos</span>
+          </div>
+          <div className="h-32 overflow-y-auto space-y-1">
+            {kafkaMessages.length === 0 ? (
+              <p className="text-gray-500 italic">Esperando eventos de mascotas encontradas...</p>
+            ) : (
+              kafkaMessages.map((msg, index) => (
+                <div key={index} className="border-l-2 border-green-500 pl-2">
+                  {msg}
+                </div>
+              ))
+            )}
           </div>
         </div>
 
